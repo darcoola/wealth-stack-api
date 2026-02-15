@@ -1,0 +1,31 @@
+mBank S.A. Bankowość Detaliczna;
+		Skrytka Pocztowa 2108;
+		90-959 Łódź 2;
+		www.mBank.pl;
+		mLinia: 801 300 800;
+		+48 (42) 6 300 800;
+
+
+#Klient;
+JAN KOWALSKI;
+
+Lista operacji;
+
+#Za okres:;
+01.01.2026;31.01.2026;
+
+#zgodnie z wybranymi filtrami wyszukiwania;
+      #dla rachunków:;
+      mKonto Intensive - 56114020040000350275831026;
+
+      #Lista nie jest dokumentem w rozumieniu art. 7 Ustawy Prawo Bankowe (Dz. U. Nr 140 z 1997 roku, poz.939 z późniejszymi zmianami), ponieważ operacje można samodzielnie edytować.;
+
+      #Waluta;#Wpływy;#Wydatki;
+PLN;2 000,00;-277,39;
+
+#Data operacji;#Opis operacji;#Rachunek;#Kategoria;#Kwota;
+2026-01-31;"Orlen  ZAKUP PRZY UŻYCIU KARTY - INTERNET                                                  ";"mKonto Intensive 5611 ... 1026";"Paliwo";-135,76 PLN;;
+2026-01-31;"PRZELEW EXPRESS ELIXIR WYCH.  KATARZYNA RYCHLIK                                                     .                                                                      PRZELEW EXPRESS ELIXIR WYCH.                                                      62102011850000480204232039  ";"mKonto Intensive 5611 ... 1026";"Płatności - inne";-9 000,00 PLN;;
+2026-01-31;"KATARZYNA RYCHLIK, PRZELEW ŚRODKÓW  UL.RYBAŁTÓW 12 M.24                02-886 WARSZAWA                     PRZELEW WEWNĘTRZNY PRZYCHODZĄCY                                                   96114020040000310286342877  ";"mKonto Intensive 5611 ... 1026";"Wpływy - inne";2 000,00 PLN;;
+
+

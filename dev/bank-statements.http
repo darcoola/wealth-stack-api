@@ -1,0 +1,32 @@
+### Get all operations from DB
+GET http://localhost:8080/api/v1/bank-statements
+
+### Import mBank statement
+POST http://localhost:8080/api/v1/bank-statements
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="bankName"
+
+mbank
+--boundary
+Content-Disposition: form-data; name="file"; filename="mbank_1.csv"
+Content-Type: text/csv
+
+< ../mbank_1.csv
+--boundary--
+
+### Import with unsupported bank (expect 400)
+POST http://localhost:8080/api/v1/bank-statements
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="bankName"
+
+unsupported
+--boundary
+Content-Disposition: form-data; name="file"; filename="test.csv"
+Content-Type: text/csv
+
+some,test,content
+--boundary--
