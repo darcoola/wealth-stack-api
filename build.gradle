@@ -20,13 +20,21 @@ dependencies {
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
     runtimeOnly 'org.postgresql:postgresql'
 
+    // Schema migrations (replaces Hibernate ddl-auto). flyway-database-* modules provide
+    // the per-database support that Flyway 10+ split out of the core jar; spring-boot-flyway
+    // carries the auto-configuration (Spring Boot 4 split it out of spring-boot-autoconfigure).
+    implementation 'org.springframework.boot:spring-boot-flyway'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+
     // Auto-starts the compose.yaml Postgres container when the app runs (dev only).
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 
     testImplementation 'org.jetbrains.kotlin:kotlin-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.willowtreeapps.assertk:assertk:0.28.1'
-    // Tests run against in-memory H2 so they need no running Postgres/Docker.
+    // Tests run against in-memory H2 so they need no running Postgres/Docker. Flyway's H2
+    // support is bundled in flyway-core, so the same migrations run against H2 in tests.
     testRuntimeOnly 'com.h2database:h2'
 }
 

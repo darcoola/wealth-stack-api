@@ -7,5 +7,6 @@ data class ImportResult(
     val bankName: String,
     val fileName: String,
     val operationsImported: Int,
+    val operationsOverwritten: Int,
     val operations: List<OperationDto>
 )

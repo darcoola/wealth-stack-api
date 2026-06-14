@@ -8,13 +8,13 @@ Content-Type: multipart/form-data; boundary=boundary
 --boundary
 Content-Disposition: form-data; name="bankName"
 
-mbank
+pkobp
 
 --boundary
-Content-Disposition: form-data; name="file"; filename="mbank.csv"
+Content-Disposition: form-data; name="file"; filename="pkobp.csv"
 Content-Type: text/csv
 
-< ../mbank.csv
+< ../pkobp.csv
 --boundary--
 
 ### Import with unsupported bank (expect 400)

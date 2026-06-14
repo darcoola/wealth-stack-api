@@ -4,7 +4,9 @@ import assertk.assertThat
 import assertk.assertions.each
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -21,6 +23,18 @@ class AccountMappingTest {
 
     @LocalServerPort
     var port: Int = 0
+
+    @Autowired
+    lateinit var operationRepository: BankingOperationRepository
+
+    @Autowired
+    lateinit var mappingRepository: AccountMappingRepository
+
+    @BeforeEach
+    fun clean() {
+        operationRepository.deleteAll()
+        mappingRepository.deleteAll()
+    }
 
     private fun baseUrl() = "http://localhost:$port"
     private val rest = RestTemplate()

@@ -4,7 +4,9 @@ import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -20,6 +22,12 @@ class BankStatementControllerTest {
 
     @LocalServerPort
     var port: Int = 0
+
+    @Autowired
+    lateinit var operationRepository: BankingOperationRepository
+
+    @BeforeEach
+    fun clean() = operationRepository.deleteAll()
 
     private fun baseUrl() = "http://localhost:$port"
 

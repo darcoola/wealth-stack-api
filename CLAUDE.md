@@ -32,4 +32,7 @@ See `ARCHITECTURE.md`. Key points:
 - Beans are wired explicitly in `BankStatementConfig` (no `@Service`/`@Component` scanning for
   services/controllers); register new ones there.
 - PostgreSQL in dev/prod (auto-started via `compose.yaml`); tests run against in-memory H2.
+- Schema is owned by **Flyway** (`src/main/resources/db/migration`); Hibernate runs in
+  `ddl-auto: validate`. Any entity change needs a new `V<n>__...sql` migration — never edit an
+  applied one.
 - Testing: JUnit 5 (`kotlin-test`) + Spring Boot Test + assertk.

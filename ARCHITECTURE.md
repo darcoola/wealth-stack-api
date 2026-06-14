@@ -14,6 +14,7 @@ and lets the user attach human-friendly display names to raw account identifiers
 - **Kotlin 2.3.0** on **JDK 25**, **Spring Boot 4.0.2** (web + data-jpa + jackson-kotlin).
 - Build: **Gradle (Groovy DSL)** — `build.gradle` / `settings.gradle` (note: *not* `.kts`).
 - Persistence: **PostgreSQL** in prod/dev, **H2** (PostgreSQL mode) for tests.
+- Schema is owned by **Flyway** (`src/main/resources/db/migration`), not Hibernate — see below.
 - Dev DB: `compose.yaml` (Postgres 17) auto-started via `spring-boot-docker-compose`.
 - Tests: JUnit 5 (`kotlin-test`) + Spring Boot Test + **assertk** assertions.
 
@@ -35,11 +36,25 @@ Two JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 - **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
   `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
   amount sign), `bankName`, `account` (raw account/card identifier), `displayName?` (resolved
-  from mappings), `category` (bank's own transaction type), `sourceFileName`.
+  from mappings), `category` (bank's own transaction type), `sourceFileName`, `fingerprint` +
+  `occurrence` (duplicate-detection identity — see below). Unique constraint on
+  `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
   Editing a mapping back-fills `displayName` on all existing operations with that account.
 
 `OperationType` is `CREDIT`/`DEBIT`. Amount sign drives the type (≥0 = CREDIT).
+
+## Database schema & migrations
+
+Schema is managed by **Flyway**, not Hibernate. Migrations live in
+`src/main/resources/db/migration` as `V<n>__<description>.sql` and run automatically on startup
+(prod/dev against Postgres, tests against H2 in PostgreSQL mode — H2 support ships in
+`flyway-core`). `V1__create_initial_schema.sql` is the baseline matching the entities above.
+
+Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
+checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
+needs a matching migration** — add a new `V<n>__...sql`; never edit an applied migration. Column
+names follow Spring's snake_case physical naming strategy (e.g. `bankName` → `bank_name`).
 
 ## Package layout & flow
 
@@ -62,8 +77,20 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 2. `StatementImporter.importStatement` → `StatementParserFactory.getParser(bankName)`
    (case-insensitive; throws `IllegalArgumentException` → HTTP 400 for unknown banks).
 3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
-4. Importer applies known account mappings to set `displayName`, then `saveAll`.
-5. Returns `ImportResult` (summary + operation DTOs).
+4. Importer applies known account mappings to set `displayName`.
+5. Importer assigns each operation a `fingerprint` + `occurrence` (duplicate detection) and
+   **overwrites** any existing row sharing that identity instead of inserting a duplicate, then
+   `saveAll`.
+6. Returns `ImportResult` (summary with `operationsImported` / `operationsOverwritten` + DTOs).
+
+### Duplicate detection
+Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
+SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it will
+become a user-editable classification), as are `displayName`/`sourceFileName`. Genuinely identical
+operations on the same day share a fingerprint and are disambiguated by a zero-based `occurrence`
+index assigned in file order, so re-imports fold onto the same physical rows. Current strategy is
+**overwrite** (copies `category`, `displayName`, `sourceFileName` onto the existing row); a DB
+unique constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ### Mapping flow (command side)
 - `AccountMappingController` `PUT /api/v1/account-mappings` → `AccountMapper.upsert`

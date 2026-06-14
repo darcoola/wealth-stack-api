@@ -5,7 +5,12 @@ import java.math.BigDecimal
 import java.time.LocalDate
 
 @Entity
-@Table(name = "banking_operations")
+@Table(
+    name = "banking_operations",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uk_banking_operation_identity", columnNames = ["fingerprint", "occurrence"])
+    ]
+)
 class BankingOperation(
     @Column(nullable = false)
     var date: LocalDate,
@@ -34,6 +39,20 @@ class BankingOperation(
 
     @Column(nullable = false)
     var sourceFileName: String,
+
+    /**
+     * Content hash of the immutable identity fields (see [OperationFingerprint]). Together with
+     * [occurrence] it uniquely identifies an operation so re-imports do not create duplicates.
+     */
+    @Column(nullable = false, length = 64)
+    var fingerprint: String = "",
+
+    /**
+     * Disambiguates operations that share a [fingerprint] within the same statement (genuinely
+     * identical transactions on the same day). Zero-based, assigned at import time.
+     */
+    @Column(nullable = false)
+    var occurrence: Int = 0,
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
