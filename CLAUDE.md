@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kotlin JVM project using Gradle 9.2.0. Kotlin 2.3.0 targeting JDK 25. Package namespace: `com.wealthStack`.
+Spring Boot 4.0.2 (web + data-jpa) personal-finance backend that imports bank statement CSV
+exports. Kotlin 2.3.0 targeting JDK 25. Package namespace: `com.wealthStack`.
+
+**Read `ARCHITECTURE.md` first** — it maps the domain model, packages, import/query flows, and
+bank parsers so you don't have to re-read every file each session. Keep it up to date when the
+model, endpoints, or parsers change.
 
 ## Build Commands
 
@@ -22,7 +27,9 @@ Run a single test class:
 
 ## Architecture
 
-- Standard Gradle/Kotlin project layout (`src/main/kotlin`, `src/test/kotlin`)
-- Testing with JUnit 5 via `kotlin-test`
-- Foojay toolchain resolver for JDK provisioning
-- Official Kotlin code style enforced (configured in `gradle.properties`)
+See `ARCHITECTURE.md`. Key points:
+- Build uses Gradle **Groovy DSL** (`build.gradle`/`settings.gradle`), not Kotlin DSL.
+- Beans are wired explicitly in `BankStatementConfig` (no `@Service`/`@Component` scanning for
+  services/controllers); register new ones there.
+- PostgreSQL in dev/prod (auto-started via `compose.yaml`); tests run against in-memory H2.
+- Testing: JUnit 5 (`kotlin-test`) + Spring Boot Test + assertk.

@@ -1,0 +1,98 @@
+# Architecture
+
+> Concise map of the codebase for fast onboarding. **Keep this file up to date** whenever
+> you add a module, change the domain model, add an endpoint, or add a bank parser.
+
+## What this is
+
+A Spring Boot personal-finance backend that imports bank statement exports (CSV) from
+multiple Polish banks, normalizes them into a single `BankingOperation` model, persists them,
+and lets the user attach human-friendly display names to raw account identifiers.
+
+## Stack
+
+- **Kotlin 2.3.0** on **JDK 25**, **Spring Boot 4.0.2** (web + data-jpa + jackson-kotlin).
+- Build: **Gradle (Groovy DSL)** — `build.gradle` / `settings.gradle` (note: *not* `.kts`).
+- Persistence: **PostgreSQL** in prod/dev, **H2** (PostgreSQL mode) for tests.
+- Dev DB: `compose.yaml` (Postgres 17) auto-started via `spring-boot-docker-compose`.
+- Tests: JUnit 5 (`kotlin-test`) + Spring Boot Test + **assertk** assertions.
+
+## Build & run
+
+```bash
+./gradlew build                                   # build
+./gradlew test                                    # all tests (uses H2, no Docker needed)
+./gradlew test --tests "com.wealthStack.SomeTest" # single test class
+./gradlew bootRun                                 # run app (auto-starts Postgres container)
+```
+
+App runs on `:8080`. See `dev/*.http` for ready-to-run request examples.
+
+## Domain model
+
+Two JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
+
+- **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
+  `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
+  amount sign), `bankName`, `account` (raw account/card identifier), `displayName?` (resolved
+  from mappings), `category` (bank's own transaction type), `sourceFileName`.
+- **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
+  Editing a mapping back-fills `displayName` on all existing operations with that account.
+
+`OperationType` is `CREDIT`/`DEBIT`. Amount sign drives the type (≥0 = CREDIT).
+
+## Package layout & flow
+
+All code lives under `com.wealthStack.bankstatement`.
+
+```
+bankstatement/
+  parser/        # bank-specific CSV parsers (write side input)
+  query/         # read side: finders + query controllers + DTOs
+  (root)         # entities, repositories, command controllers, services, config
+```
+
+**Wiring is explicit**, not annotation-scanned: `BankStatementConfig` declares every bean
+(parsers, factory, services, controllers, finders) via `@Bean`. Parsers are constructor-injected
+as a `List<StatementParser>`. When you add a service/controller/parser, register it there.
+(Entities and `JpaRepository` interfaces are still picked up by Spring Data automatically.)
+
+### Import flow (command side)
+1. `BankStatementController` `POST /api/v1/bank-statements` (multipart `file` + `bankName`).
+2. `StatementImporter.importStatement` → `StatementParserFactory.getParser(bankName)`
+   (case-insensitive; throws `IllegalArgumentException` → HTTP 400 for unknown banks).
+3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
+4. Importer applies known account mappings to set `displayName`, then `saveAll`.
+5. Returns `ImportResult` (summary + operation DTOs).
+
+### Mapping flow (command side)
+- `AccountMappingController` `PUT /api/v1/account-mappings` → `AccountMapper.upsert`
+  (upserts the mapping and back-fills `displayName` on matching operations).
+
+### Read side (query package)
+- `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`.
+- `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`.
+- `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
+
+## Parsers
+
+`StatementParser` interface: `bankName`, `charset` (default UTF-8), `parse(content, sourceFileName)`.
+Factory keys parsers by lowercase `bankName`.
+
+- **`MBankCsvParser`** (`bankName="mbank"`, UTF-8): `;`-separated; data starts after the
+  `#Data operacji;` header line; amounts use Polish format (comma decimal, ` PLN` suffix).
+- **`PkoBpCsvParser`** (`bankName="pkobp"`, **windows-1250**): comma-separated, every field
+  quoted, quote-aware splitter (commas can appear inside quoted fields). Data starts after the
+  `Data operacji` header; description spans trailing columns; `account` extracted from
+  `Numer karty:` / `Rachunek nadawcy:` labels.
+
+**To add a bank:** implement `StatementParser`, register a `@Bean` in `BankStatementConfig`.
+Test fixtures live in `src/test/resources/<bank>-test-statement.csv`.
+
+## Conventions
+
+- Services and finders are `open class` with `@Transactional` `open fun` (no `@Service`/`@Component`
+  annotations — they're plain classes wired by `BankStatementConfig`); they need `open` for Spring
+  proxying. Keep this pattern when adding new ones.
+- Command (write) vs query (read) are separated: root package = commands, `query/` = reads.
+- API base path: `/api/v1/...`.
