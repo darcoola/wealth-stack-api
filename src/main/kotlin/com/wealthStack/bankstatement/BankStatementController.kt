@@ -17,8 +17,7 @@ class BankStatementController(val importer: StatementImporter) {
         @RequestParam("bankName") bankName: String
     ): ResponseEntity<Any> {
         return try {
-            val content = String(file.bytes, Charsets.UTF_8)
-            val result: ImportResult = importer.importStatement(bankName, file.originalFilename ?: "unknown", content)
+            val result: ImportResult = importer.importStatement(bankName, file.originalFilename ?: "unknown", file.bytes)
             ResponseEntity.ok(result)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))

@@ -11,9 +11,9 @@ open class StatementImporter(
 ) {
 
     @Transactional
-    open fun importStatement(bankName: String, fileName: String, content: String): ImportResult {
+    open fun importStatement(bankName: String, fileName: String, content: ByteArray): ImportResult {
         val parser = parserFactory.getParser(bankName)
-        val operations = parser.parse(content, fileName)
+        val operations = parser.parse(String(content, parser.charset), fileName)
 
         val mappings = accountMappingRepository.findAll().associate { it.rawAccount to it.displayName }
         operations.forEach { op ->

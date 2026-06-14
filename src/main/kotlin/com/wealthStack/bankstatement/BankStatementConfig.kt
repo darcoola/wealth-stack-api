@@ -1,6 +1,7 @@
 package com.wealthStack.bankstatement
 
 import com.wealthStack.bankstatement.parser.MBankCsvParser
+import com.wealthStack.bankstatement.parser.PkoBpCsvParser
 import com.wealthStack.bankstatement.parser.StatementParser
 import com.wealthStack.bankstatement.parser.StatementParserFactory
 import com.wealthStack.bankstatement.query.AccountMappingFinder
@@ -15,6 +16,9 @@ class BankStatementConfig {
 
     @Bean
     fun mBankCsvParser(): MBankCsvParser = MBankCsvParser()
+
+    @Bean
+    fun pkoBpCsvParser(): PkoBpCsvParser = PkoBpCsvParser()
 
     @Bean
     fun statementParserFactory(parsers: List<StatementParser>): StatementParserFactory =
