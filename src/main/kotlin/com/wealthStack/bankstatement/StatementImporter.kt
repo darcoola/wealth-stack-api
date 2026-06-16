@@ -3,6 +3,7 @@ package com.wealthStack.bankstatement
 import com.wealthStack.bankstatement.parser.StatementParserFactory
 import com.wealthStack.bankstatement.query.toDto
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
 
 open class StatementImporter(
     private val parserFactory: StatementParserFactory,
@@ -14,7 +15,23 @@ open class StatementImporter(
     open fun importStatement(bankName: String, fileName: String, content: ByteArray): ImportResult {
         val parser = parserFactory.getParser(bankName)
         val operations = parser.parse(String(content, parser.charset), fileName)
+        return persist(operations, bankName, fileName)
+    }
 
+    /**
+     * Ingests already-prepared operation rows supplied as JSON instead of a bank CSV — used for
+     * historical data or banks without a parser. Rows go through the same mapping, fingerprinting
+     * and duplicate-overwrite pipeline as parsed statements.
+     */
+    @Transactional
+    open fun importOperations(request: ManualOperationsRequest): ImportResult {
+        require(request.operations.isNotEmpty()) { "At least one operation is required" }
+        val source = request.source?.takeIf { it.isNotBlank() }
+        val operations = request.operations.map { it.toEntity(request.bankName, source) }
+        return persist(operations, request.bankName, source)
+    }
+
+    private fun persist(operations: List<BankingOperation>, bankName: String, fileName: String?): ImportResult {
         applyAccountMappings(operations)
         assignFingerprints(operations)
 
@@ -40,8 +57,9 @@ open class StatementImporter(
 
         repository.saveAll(persisted)
 
+        val origin = fileName?.let { " from $it" } ?: ""
         return ImportResult(
-            message = "Imported $imported and overwrote $overwritten operations from $fileName",
+            message = "Imported $imported and overwrote $overwritten operations$origin",
             bankName = bankName,
             fileName = fileName,
             operationsImported = imported,
@@ -75,4 +93,17 @@ open class StatementImporter(
         displayName = incoming.displayName
         sourceFileName = incoming.sourceFileName
     }
+
+    /** Builds an entity from a JSON-supplied row, deriving the type from the amount sign. */
+    private fun ManualOperation.toEntity(bankName: String, sourceFileName: String?) = BankingOperation(
+        date = date,
+        description = description,
+        amount = amount,
+        type = if (amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT,
+        bankName = bankName,
+        account = account,
+        displayName = displayName,
+        category = category ?: "",
+        sourceFileName = sourceFileName
+    )
 }

@@ -1,0 +1,4 @@
+date,bankName,account,description,amount,category,displayName
+2024-01-15,legacy,ACME 111,Salary,5000.00,income,Old Employer
+2024-01-16,legacy,ACME 111,"Groceries, weekly",-120.50,,
+2024-02-01,other-bank,XYZ 222,Refund,42.00,refund,

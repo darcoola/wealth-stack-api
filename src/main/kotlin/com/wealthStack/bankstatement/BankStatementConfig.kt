@@ -1,5 +1,6 @@
 package com.wealthStack.bankstatement
 
+import com.wealthStack.bankstatement.parser.ManualCsvParser
 import com.wealthStack.bankstatement.parser.MBankCsvParser
 import com.wealthStack.bankstatement.parser.PkoBpCsvParser
 import com.wealthStack.bankstatement.parser.StatementParser
@@ -19,6 +20,9 @@ class BankStatementConfig {
 
     @Bean
     fun pkoBpCsvParser(): PkoBpCsvParser = PkoBpCsvParser()
+
+    @Bean
+    fun manualCsvParser(): ManualCsvParser = ManualCsvParser()
 
     @Bean
     fun statementParserFactory(parsers: List<StatementParser>): StatementParserFactory =

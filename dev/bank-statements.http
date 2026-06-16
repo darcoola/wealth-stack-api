@@ -17,6 +17,37 @@ Content-Type: text/csv
 < ../pkobp.csv
 --boundary--
 
+### Import already-prepared operation rows as JSON (historical data / unparsed bank)
+POST http://localhost:8080/api/v1/bank-statements/operations
+Content-Type: application/json
+
+{
+  "bankName": "legacy",
+  "source": "2024-history",
+  "operations": [
+    { "date": "2024-01-15", "description": "Salary", "amount": 5000.00, "account": "ACME 111", "category": "income" },
+    { "date": "2024-01-16", "description": "Groceries", "amount": -120.50, "account": "ACME 111" }
+  ]
+}
+
+### Import prepared rows via the predefined CSV schema (bankName=manual selects the generic parser)
+POST http://localhost:8080/api/v1/bank-statements
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="bankName"
+
+manual
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="manual.csv"
+Content-Type: text/csv
+
+date,bankName,account,description,amount,category,displayName
+2024-01-15,legacy,ACME 111,Salary,5000.00,income,Old Employer
+2024-01-16,legacy,ACME 111,"Groceries, weekly",-120.50,,
+--boundary--
+
 ### Import with unsupported bank (expect 400)
 POST http://localhost:8080/api/v1/bank-statements
 Content-Type: multipart/form-data; boundary=boundary

@@ -37,8 +37,8 @@ class BankingOperation(
     @Column(nullable = false)
     var category: String,
 
-    @Column(nullable = false)
-    var sourceFileName: String,
+    @Column
+    var sourceFileName: String? = null,
 
     /**
      * Content hash of the immutable identity fields (see [OperationFingerprint]). Together with

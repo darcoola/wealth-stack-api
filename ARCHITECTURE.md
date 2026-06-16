@@ -36,7 +36,8 @@ Two JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 - **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
   `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
   amount sign), `bankName`, `account` (raw account/card identifier), `displayName?` (resolved
-  from mappings), `category` (bank's own transaction type), `sourceFileName`, `fingerprint` +
+  from mappings), `category` (bank's own transaction type), `sourceFileName?` (provenance;
+  nullable — absent for manual/JSON rows with no source), `fingerprint` +
   `occurrence` (duplicate-detection identity — see below). Unique constraint on
   `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
@@ -83,6 +84,15 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
    `saveAll`.
 6. Returns `ImportResult` (summary with `operationsImported` / `operationsOverwritten` + DTOs).
 
+### Manual / JSON ingest (command side)
+`BankStatementController` `POST /api/v1/bank-statements/operations` (JSON `ManualOperationsRequest`:
+`bankName`, optional `source`, list of `operations` with `date`/`description`/`amount`/`account` and
+optional `category`/`displayName`). For already-prepared rows — historical data or banks without a
+parser. `StatementImporter.importOperations` builds entities (deriving `type` from amount sign,
+`sourceFileName` from `source`) and runs them through the **same** mapping → fingerprint →
+duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends fold onto the
+same rows. Returns the same `ImportResult`.
+
 ### Duplicate detection
 Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
 SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it will
@@ -112,6 +122,12 @@ Factory keys parsers by lowercase `bankName`.
   quoted, quote-aware splitter (commas can appear inside quoted fields). Data starts after the
   `Data operacji` header; description spans trailing columns; `account` extracted from
   `Numer karty:` / `Rachunek nadawcy:` labels.
+- **`ManualCsvParser`** (`bankName="manual"`, UTF-8): WealthStack's **own predefined schema** for
+  already-prepared rows (historical data / unparsed banks) — not a bank export. Header row names
+  the columns (case-insensitive, order-independent): required `date,bankName,account,description,
+  amount`, optional `category,displayName`. Quote-aware, dot-decimal amounts, `type` from amount
+  sign. Each row carries its own `bankName`, so one file may mix banks; the upload `bankName=manual`
+  only selects the parser. JSON equivalent: `POST /api/v1/bank-statements/operations` (above).
 
 **To add a bank:** implement `StatementParser`, register a `@Bean` in `BankStatementConfig`.
 Test fixtures live in `src/test/resources/<bank>-test-statement.csv`.
