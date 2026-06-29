@@ -12,6 +12,7 @@ and lets the user attach human-friendly display names to raw account identifiers
 ## Stack
 
 - **Kotlin 2.3.0** on **JDK 25**, **Spring Boot 4.0.2** (web + data-jpa + jackson-kotlin).
+- Frontend: **Angular 21 + PrimeNG 21** SPA in `frontend/` (see *Frontend* below).
 - Build: **Gradle (Groovy DSL)** — `build.gradle` / `settings.gradle` (note: *not* `.kts`).
 - Persistence: **PostgreSQL** in prod/dev, **H2** (PostgreSQL mode) for tests.
 - Schema is owned by **Flyway** (`src/main/resources/db/migration`), not Hibernate — see below.
@@ -27,7 +28,15 @@ and lets the user attach human-friendly display names to raw account identifiers
 ./gradlew bootRun                                 # run app (auto-starts Postgres container)
 ```
 
-App runs on `:8080`. See `dev/*.http` for ready-to-run request examples.
+App runs on `:8088` (serves both the REST API and the bundled UI). See `dev/*.http` for
+ready-to-run request examples.
+
+Frontend dev loop (live reload, no rebuild of the backend):
+```bash
+cd frontend && npm start   # Angular dev server on :4200, proxies /api → :8088 (proxy.conf.json)
+```
+Run `./gradlew bootRun` (backend on :8088) alongside it. For a backend-only build that skips the
+(slow) npm build, pass `-PskipFrontend`.
 
 ## Domain model
 
@@ -131,6 +140,35 @@ Factory keys parsers by lowercase `bankName`.
 
 **To add a bank:** implement `StatementParser`, register a `@Bean` in `BankStatementConfig`.
 Test fixtures live in `src/test/resources/<bank>-test-statement.csv`.
+
+## Frontend
+
+A single-page app in `frontend/` — **Angular 21** (standalone components + signals) with **PrimeNG
+21** components and the free **Aura** theme (`@primeng/themes`), PrimeIcons. It's a thin UI shell
+today; pages are stubs to be filled in incrementally.
+
+```
+frontend/
+  src/app/
+    app.ts / app.html / app.scss   # shell: top header + left p-menu + <router-outlet>
+    app.config.ts                  # providers: router, HttpClient, providePrimeNG (Aura, .app-dark)
+    app.routes.ts                  # lazy-loaded routes; '' → dashboard, '**' → dashboard
+    pages/<name>/<name>.ts         # one standalone component per menu item (stubs)
+  proxy.conf.json                  # dev: proxy /api → http://localhost:8088
+  angular.json                     # build output → frontend/dist/frontend/browser
+```
+
+Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Import**,
+**Accounts**, **Reports**. Add a page by creating `pages/<name>/<name>.ts`, a route in
+`app.routes.ts`, and a `MenuItem` in `app.ts`.
+
+**Build integration & serving (single jar):** `build.gradle` uses the `com.github.node-gradle.node`
+plugin (it downloads a pinned **Node 26.4.0** for reproducibility). `frontendBuild` runs the npm
+build; `copyFrontend` stages the output under `build/frontend-resources/static/`, which is wired in
+as a `main` resources source dir so `processResources` (and thus `bootJar`/`bootRun`) bundle it at
+`classpath:/static/`. `web/WebConfig.kt` serves those files and falls back to `index.html` for
+non-API, non-file paths so Angular's HTML5 deep links survive a refresh; unknown `api` paths still
+404. Skip the whole frontend build with `-PskipFrontend`.
 
 ## Conventions
 

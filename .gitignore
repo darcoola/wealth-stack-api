@@ -40,3 +40,9 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Frontend (Angular) ###
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.angular/cache/

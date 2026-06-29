@@ -1,0 +1,32 @@
+<div class="layout" [class.layout--collapsed]="sidebarCollapsed()">
+  <header class="layout-header">
+    <div class="layout-header__left">
+      <p-button
+        [text]="true"
+        severity="secondary"
+        icon="pi pi-bars"
+        ariaLabel="Toggle menu"
+        (onClick)="toggleSidebar()" />
+      <span class="layout-header__brand">
+        <i class="pi pi-wallet"></i>
+        WealthStack
+      </span>
+    </div>
+    <div class="layout-header__right">
+      <p-button
+        [text]="true"
+        severity="secondary"
+        [icon]="darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
+        ariaLabel="Toggle dark mode"
+        (onClick)="toggleDarkMode()" />
+    </div>
+  </header>
+
+  <aside class="layout-sidebar">
+    <p-menu [model]="menuItems" styleClass="layout-menu" />
+  </aside>
+
+  <main class="layout-content">
+    <router-outlet />
+  </main>
+</div>

@@ -1,0 +1,30 @@
+/* Global styles */
+@use 'primeicons/primeicons.css';
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--p-font-family, 'Inter', system-ui, sans-serif);
+  background: var(--p-content-background);
+  color: var(--p-text-color);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Shared page-level typography (used by routed page components). */
+.page-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  margin: 0 0 1.5rem;
+  color: var(--p-text-muted-color);
+}

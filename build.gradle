@@ -3,6 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.spring' version '2.3.0'
     id 'org.jetbrains.kotlin.plugin.jpa' version '2.3.0'
     id 'org.springframework.boot' version '4.0.2'
+    // Runs the Angular (npm) build from Gradle so a single ./gradlew build produces a jar
+    // that serves both the API and the compiled frontend.
+    id 'com.github.node-gradle.node' version '7.1.0'
 }
 
 group = 'com.wealth-stack'
@@ -27,6 +30,9 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
+    // The BOM is applied to `implementation`, which developmentOnly does not extend, so it needs
+    // its own platform import for the docker-compose dependency's version to resolve.
+    developmentOnly platform('org.springframework.boot:spring-boot-dependencies:4.0.2')
     // Auto-starts the compose.yaml Postgres container when the app runs (dev only).
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 
@@ -44,4 +50,46 @@ kotlin {
 
 test {
     useJUnitPlatform()
+}
+
+// ---------------------------------------------------------------------------
+// Frontend (Angular + PrimeNG) build integration
+//
+// The Angular app lives in `frontend/`. Its production build is copied into the
+// Spring Boot static resources so a single `./gradlew build` yields one jar that
+// serves the API and the UI. Use `-PskipFrontend` to skip it for backend-only work.
+// ---------------------------------------------------------------------------
+node {
+    // Download a pinned Node into the build (cached under ~/.gradle) so the frontend build is
+    // reproducible and doesn't depend on a Node install being on the Gradle daemon's PATH.
+    download = true
+    version = '26.4.0'
+    nodeProjectDir = file("${projectDir}/frontend")
+}
+
+if (!project.hasProperty('skipFrontend')) {
+    def frontendBuild = tasks.register('frontendBuild', com.github.gradle.node.npm.task.NpmTask) {
+        dependsOn tasks.named('npmInstall')
+        args = ['run', 'build']
+        // Incremental-build hints so Gradle can skip the npm build when nothing changed.
+        inputs.dir('frontend/src')
+        inputs.file('frontend/package.json')
+        inputs.file('frontend/package-lock.json')
+        inputs.file('frontend/angular.json')
+        inputs.file('frontend/tsconfig.json')
+        outputs.dir('frontend/dist')
+    }
+
+    // Stage the built UI under a `static/` folder so it lands at classpath:/static/ in the jar.
+    def frontendResources = layout.buildDirectory.dir('frontend-resources')
+    def copyFrontend = tasks.register('copyFrontend', Copy) {
+        dependsOn frontendBuild
+        from("${projectDir}/frontend/dist/frontend/browser")
+        into(frontendResources.map { it.dir('static') })
+    }
+
+    // Expose the staged UI as a resources source dir; processResources (and everything that
+    // depends on it: bootJar, bootRun, resolveMainClassName) then picks it up automatically.
+    sourceSets.main.resources.srcDir(frontendResources)
+    tasks.named('processResources') { dependsOn copyFrontend }
 }
