@@ -1,0 +1,15 @@
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { Operation } from './operation';
+
+/** Read access to bank operations. The base path is proxied to the backend in dev. */
+@Injectable({ providedIn: 'root' })
+export class OperationsService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/bank-statements';
+
+  getAll(): Observable<Operation[]> {
+    return this.http.get<Operation[]>(this.baseUrl);
+  }
+}

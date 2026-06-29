@@ -1,0 +1,90 @@
+<h1 class="page-title">Operations</h1>
+<p class="page-subtitle">Browse, filter and search your bank transactions.</p>
+
+@if (error()) {
+  <div class="error-banner" role="alert">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ error() }}</span>
+    <p-button label="Retry" size="small" [text]="true" (onClick)="load()" />
+  </div>
+}
+
+<p-table
+  #dt
+  [value]="operations()"
+  [loading]="loading()"
+  [paginator]="true"
+  [rows]="20"
+  [rowsPerPageOptions]="[10, 20, 50, 100]"
+  [globalFilterFields]="['description', 'displayName', 'account', 'category']"
+  sortField="date"
+  [sortOrder]="-1"
+  styleClass="p-datatable-sm"
+  currentPageReportTemplate="{first}–{last} of {totalRecords}"
+  [showCurrentPageReport]="true">
+  <ng-template pTemplate="caption">
+    <div class="table-caption">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          type="text"
+          placeholder="Search operations"
+          (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+      </p-iconfield>
+      <p-button
+        icon="pi pi-refresh"
+        severity="secondary"
+        [text]="true"
+        ariaLabel="Reload operations"
+        (onClick)="load()" />
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="header">
+    <tr>
+      <th pSortableColumn="date" style="width: 9rem">Date <p-sortIcon field="date" /></th>
+      <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
+      <th pSortableColumn="displayName" style="width: 13rem">Account <p-sortIcon field="displayName" /></th>
+      <th pSortableColumn="category" style="width: 12rem">Category <p-sortIcon field="category" /></th>
+      <th style="width: 7rem">Type</th>
+      <th pSortableColumn="amount" style="width: 10rem" class="text-right">Amount <p-sortIcon field="amount" /></th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-op>
+    <tr>
+      <td class="date-cell">{{ op.date | date: 'yyyy-MM-dd' }}</td>
+      <td class="description-cell" [title]="op.description">{{ op.description }}</td>
+      <td>{{ op.displayName }}</td>
+      <td>{{ op.category }}</td>
+      <td>
+        <p-tag
+          [value]="op.amount >= 0 ? 'CREDIT' : 'DEBIT'"
+          [severity]="op.amount >= 0 ? 'success' : 'danger'" />
+      </td>
+      <td
+        class="text-right amount"
+        [class.amount--credit]="op.amount >= 0"
+        [class.amount--debit]="op.amount < 0">
+        {{ op.amount | number: '1.2-2' }} PLN
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="6" class="empty-cell">
+        @if (!loading()) {
+          No operations yet. Import a statement to get started.
+        }
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="summary">
+    <div class="table-summary">
+      {{ operations().length }} operations · Net {{ total() | number: '1.2-2' }} PLN
+    </div>
+  </ng-template>
+</p-table>

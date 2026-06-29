@@ -1,16 +1,57 @@
-import { Component } from '@angular/core';
-import { CardModule } from 'primeng/card';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
+import { ButtonModule } from 'primeng/button';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { InputTextModule } from 'primeng/inputtext';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { Operation } from '../../core/operation';
+import { OperationsService } from '../../core/operations.service';
 
 @Component({
   selector: 'app-operations',
-  imports: [CardModule],
-  template: `
-    <h1 class="page-title">Operations</h1>
-    <p class="page-subtitle">Browse, filter and search your bank transactions.</p>
-    <p-card>
-      <p>A sortable, filterable transactions table (from
-        <code>GET /api/v1/bank-statements</code>) will appear here.</p>
-    </p-card>
-  `,
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    TableModule,
+    TagModule,
+    InputTextModule,
+    IconFieldModule,
+    InputIconModule,
+    ButtonModule,
+  ],
+  templateUrl: './operations.html',
+  styleUrl: './operations.scss',
 })
-export class Operations {}
+export class Operations {
+  private readonly service = inject(OperationsService);
+
+  protected readonly operations = signal<Operation[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+
+  /** Net of all loaded operations (credits minus debits). */
+  protected readonly total = computed(() =>
+    this.operations().reduce((sum, op) => sum + op.amount, 0),
+  );
+
+  constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.service.getAll().subscribe({
+      next: (operations) => {
+        this.operations.set(operations);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Could not load operations. Is the backend running?');
+        this.loading.set(false);
+      },
+    });
+  }
+}
