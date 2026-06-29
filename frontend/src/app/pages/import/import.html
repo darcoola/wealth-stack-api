@@ -1,0 +1,78 @@
+<h1 class="page-title">Import statements</h1>
+<p class="page-subtitle">Upload a bank statement file to import its operations.</p>
+
+<p-card>
+  <div class="import-form">
+    <div class="field">
+      <label for="bank">Bank</label>
+      <p-select
+        inputId="bank"
+        [options]="banks"
+        optionLabel="label"
+        optionValue="id"
+        [ngModel]="selectedBank()"
+        (ngModelChange)="selectedBank.set($event)"
+        placeholder="Select a bank"
+        styleClass="bank-select" />
+      <small class="hint">The bank determines how the file is parsed.</small>
+    </div>
+
+    <div class="field">
+      <label>Statement file</label>
+      <p-fileupload
+        #fileUpload
+        mode="advanced"
+        [customUpload]="true"
+        [multiple]="false"
+        accept=".csv"
+        [maxFileSize]="maxFileSize"
+        [disabled]="!selectedBank()"
+        chooseLabel="Choose CSV"
+        uploadLabel="Import"
+        cancelLabel="Clear"
+        (uploadHandler)="onUpload($event)">
+        <ng-template pTemplate="empty">
+          <p class="upload-hint">
+            @if (selectedBank()) {
+              Drag and drop a .csv statement here, or use “Choose CSV”.
+            } @else {
+              Select a bank first to enable the upload.
+            }
+          </p>
+        </ng-template>
+      </p-fileupload>
+    </div>
+
+    @if (uploading()) {
+      <p class="uploading"><i class="pi pi-spin pi-spinner"></i> Importing…</p>
+    }
+
+    @if (error()) {
+      <div class="error-banner" role="alert">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    @if (result(); as r) {
+      <div class="result-banner" role="status">
+        <i class="pi pi-check-circle"></i>
+        <div class="result-text">
+          <strong>{{ r.message }}</strong>
+          <div class="result-counts">
+            Imported {{ r.operationsImported }} · Overwritten {{ r.operationsOverwritten }}
+            @if (r.fileName) {
+              · {{ r.fileName }}
+            }
+          </div>
+        </div>
+        <p-button
+          label="View operations"
+          icon="pi pi-arrow-right"
+          iconPos="right"
+          size="small"
+          (onClick)="goToOperations()" />
+      </div>
+    }
+  </div>
+</p-card>

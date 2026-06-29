@@ -1,0 +1,73 @@
+.import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 640px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label {
+    font-weight: 600;
+  }
+}
+
+.bank-select {
+  width: 18rem;
+}
+
+.hint,
+.upload-hint {
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.upload-hint {
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.uploading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--p-red-200);
+  border-radius: var(--p-content-border-radius);
+  background: var(--p-red-50);
+  color: var(--p-red-700);
+}
+
+.result-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--p-green-200);
+  border-radius: var(--p-content-border-radius);
+  background: var(--p-green-50);
+  color: var(--p-green-700);
+
+  i {
+    font-size: 1.5rem;
+  }
+
+  .result-text {
+    flex: 1;
+  }
+
+  .result-counts {
+    color: var(--p-green-600);
+  }
+}
