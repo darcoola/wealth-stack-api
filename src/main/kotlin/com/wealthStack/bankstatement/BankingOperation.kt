@@ -31,8 +31,9 @@ class BankingOperation(
     @Column(nullable = false, length = 500)
     var account: String,
 
+    /** Display name of the mapped [account], copied from its [AccountMapping]; `null` when unmapped. */
     @Column(length = 500)
-    var displayName: String? = null,
+    var accountDisplayName: String? = null,
 
     /**
      * Classification from the editable [Category] dictionary, or `null` (Uncategorized). Set by the

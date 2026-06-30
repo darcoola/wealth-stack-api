@@ -41,10 +41,10 @@ class ManualCsvParserTest {
     }
 
     @Test
-    fun `optional displayName defaults when blank`() {
+    fun `optional accountDisplayName defaults when blank`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
-        assertThat(operations[0].displayName).isEqualTo("Old Employer")
-        assertThat(operations[1].displayName).isNull()
+        assertThat(operations[0].accountDisplayName).isEqualTo("Old Employer")
+        assertThat(operations[1].accountDisplayName).isNull()
     }
 
     @Test

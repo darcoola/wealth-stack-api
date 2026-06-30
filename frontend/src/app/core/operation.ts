@@ -8,7 +8,7 @@ export interface Operation {
   /** Raw account/card identifier. */
   account: string;
   /** Friendly name resolved from account mappings (falls back to `account`). */
-  displayName: string;
+  accountDisplayName: string;
   /** Signed amount; negative = debit, non-negative = credit. */
   amount: number;
   /** Assigned category dictionary id, or `null` when Uncategorized. */

@@ -18,7 +18,7 @@
   [paginator]="true"
   [rows]="20"
   [rowsPerPageOptions]="[10, 20, 50, 100]"
-  [globalFilterFields]="['description', 'displayName', 'account', 'category']"
+  [globalFilterFields]="['description', 'accountDisplayName', 'account', 'category']"
   sortField="date"
   [sortOrder]="-1"
   styleClass="p-datatable-sm"
@@ -76,7 +76,7 @@
       <th style="width: 3rem"><p-tableHeaderCheckbox /></th>
       <th pSortableColumn="date" style="width: 9rem">Date <p-sortIcon field="date" /></th>
       <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
-      <th pSortableColumn="displayName" style="width: 13rem">Account <p-sortIcon field="displayName" /></th>
+      <th pSortableColumn="accountDisplayName" style="width: 13rem">Account <p-sortIcon field="accountDisplayName" /></th>
       <th pSortableColumn="category" style="width: 12rem">Category <p-sortIcon field="category" /></th>
       <th style="width: 7rem">Type</th>
       <th pSortableColumn="amount" style="width: 10rem" class="text-right">Amount <p-sortIcon field="amount" /></th>
@@ -88,7 +88,7 @@
       <td><p-tableCheckbox [value]="op" /></td>
       <td class="date-cell">{{ op.date | date: 'yyyy-MM-dd' }}</td>
       <td class="description-cell" [title]="op.description">{{ op.description }}</td>
-      <td>{{ op.displayName }}</td>
+      <td>{{ op.accountDisplayName }}</td>
       <td>
         <p-select
           [options]="categories()"

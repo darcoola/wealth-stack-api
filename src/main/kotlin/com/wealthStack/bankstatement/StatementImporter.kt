@@ -72,7 +72,7 @@ open class StatementImporter(
 
     private fun applyAccountMappings(operations: List<BankingOperation>) {
         val mappings = accountMappingRepository.findAll().associate { it.rawAccount to it.displayName }
-        operations.forEach { op -> mappings[op.account]?.let { op.displayName = it } }
+        operations.forEach { op -> mappings[op.account]?.let { op.accountDisplayName = it } }
     }
 
     /**
@@ -114,7 +114,7 @@ open class StatementImporter(
      * preserves whatever the user assigned in the UI.
      */
     private fun BankingOperation.overwriteWith(incoming: BankingOperation) {
-        displayName = incoming.displayName
+        accountDisplayName = incoming.accountDisplayName
         sourceFileName = incoming.sourceFileName
         incoming.category?.let { category = it }
     }
@@ -127,7 +127,7 @@ open class StatementImporter(
         type = if (amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT,
         bankName = bankName,
         account = account,
-        displayName = displayName,
+        accountDisplayName = accountDisplayName,
         sourceFileName = sourceFileName
     ).apply { categoryName = this@toEntity.category }
 }

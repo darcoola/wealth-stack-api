@@ -15,13 +15,13 @@ import java.time.LocalDate
  * naming the columns (case-insensitive, order-independent):
  *
  * ```
- * date,bankName,account,description,amount,displayName,category
+ * date,bankName,account,description,amount,accountDisplayName,category
  * 2024-01-15,legacy,ACME 111,Salary,5000.00,Old Employer,Income
  * 2024-01-16,legacy,ACME 111,Groceries,-120.50,,
  * ```
  *
  * Required columns: `date` (ISO yyyy-MM-dd), `bankName`, `account`, `description`, `amount`
- * (dot decimal, optional minus). Optional: `displayName`, `category`. `type` is derived from the
+ * (dot decimal, optional minus). Optional: `accountDisplayName`, `category`. `type` is derived from the
  * amount sign. A non-blank `category` must name an existing dictionary entry (resolved at import
  * by [com.wealthStack.bankstatement.StatementImporter]; an unknown name fails the import); blank
  * or absent leaves the row Uncategorized.
@@ -68,7 +68,7 @@ class ManualCsvParser : StatementParser {
             type = if (amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT,
             bankName = required("bankname"),
             account = required("account"),
-            displayName = optional("displayname"),
+            accountDisplayName = optional("accountdisplayname"),
             sourceFileName = sourceFileName
         ).apply { categoryName = optional("category") }
     }
@@ -103,6 +103,6 @@ class ManualCsvParser : StatementParser {
 
     private companion object {
         val REQUIRED_COLUMNS = listOf("date", "bankname", "account", "description", "amount")
-        const val EXPECTED_HEADER = "date,bankName,account,description,amount,displayName,category"
+        const val EXPECTED_HEADER = "date,bankName,account,description,amount,accountDisplayName,category"
     }
 }

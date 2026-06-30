@@ -8,7 +8,7 @@ data class OperationDto(
     val date: LocalDate,
     val description: String,
     val account: String,
-    val displayName: String,
+    val accountDisplayName: String,
     val amount: BigDecimal,
     val categoryId: Long?,
     val category: String?

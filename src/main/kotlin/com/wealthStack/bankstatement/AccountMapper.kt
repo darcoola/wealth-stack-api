@@ -19,7 +19,7 @@ open class AccountMapper(
         }
 
         val operations = bankingOperationRepository.findAllByAccount(rawAccount)
-        operations.forEach { it.displayName = displayName }
+        operations.forEach { it.accountDisplayName = displayName }
         bankingOperationRepository.saveAll(operations)
 
         return saved

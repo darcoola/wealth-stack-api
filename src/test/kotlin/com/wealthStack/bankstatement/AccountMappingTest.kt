@@ -55,7 +55,7 @@ class AccountMappingTest {
             Map::class.java
         )
 
-        // Import a statement — operations should have displayName set
+        // Import a statement — operations should have accountDisplayName set
         val body = LinkedMultiValueMap<String, Any>()
         body.add("file", ClassPathResource("mbank-test-statement.csv"))
         body.add("bankName", "mbank")
@@ -73,7 +73,7 @@ class AccountMappingTest {
         assertThat(importResponse.body).isNotNull()
 
         val operations = importResponse.body!!["operations"] as List<*>
-        assertThat(operations.map { (it as Map<*, *>)["displayName"] }).each {
+        assertThat(operations.map { (it as Map<*, *>)["accountDisplayName"] }).each {
             it.isEqualTo("mBank ROR")
         }
         // raw account is preserved
@@ -84,7 +84,7 @@ class AccountMappingTest {
 
     @Test
     fun `mapping retroactively updates existing operations`() {
-        // Import first — operations will have no displayName
+        // Import first — operations will have no accountDisplayName
         val body = LinkedMultiValueMap<String, Any>()
         body.add("file", ClassPathResource("mbank-test-statement.csv"))
         body.add("bankName", "mbank")
@@ -98,7 +98,7 @@ class AccountMappingTest {
             Map::class.java
         )
 
-        // Now create/update a mapping — should set displayName on existing operations
+        // Now create/update a mapping — should set accountDisplayName on existing operations
         val mappingHeaders = HttpHeaders()
         mappingHeaders.contentType = MediaType.APPLICATION_JSON
 
@@ -118,7 +118,7 @@ class AccountMappingTest {
             List::class.java
         )
         val ops = allOps.body!!.filterIsInstance<Map<*, *>>()
-        val displayNames = ops.map { it["displayName"] }.distinct()
+        val displayNames = ops.map { it["accountDisplayName"] }.distinct()
         assertThat(displayNames).each {
             it.isEqualTo("mBank Retroactive")
         }

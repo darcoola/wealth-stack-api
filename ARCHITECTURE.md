@@ -45,14 +45,14 @@ Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 
 - **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
   `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
-  amount sign), `bankName`, `account` (raw account/card identifier), `displayName?` (resolved
-  from mappings), `category?` (`@ManyToOne` FK to `Category`, nullable = Uncategorized; set by the
+  amount sign), `bankName`, `account` (raw account/card identifier), `accountDisplayName?` (the
+  mapped account's display name, resolved from mappings), `category?` (`@ManyToOne` FK to `Category`, nullable = Uncategorized; set by the
   user in the UI, or by a **manual** import that names a dictionary category — raw bank parsers
   never set it), `sourceFileName?` (provenance; nullable — absent for
   manual/JSON rows with no source), `fingerprint` + `occurrence` (duplicate-detection identity —
   see below). Unique constraint on `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
-  Editing a mapping back-fills `displayName` on all existing operations with that account.
+  Editing a mapping back-fills `accountDisplayName` on all existing operations with that account.
 - **`Category`** (`categories`) — an editable dictionary entry with a unique `name`. Fully
   user-curated (create / rename / delete) via `CategoryService`; operations point at one by FK.
   Deleting a category in use first un-assigns it from its operations (FK → null). Shaped to later
@@ -95,7 +95,7 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 2. `StatementImporter.importStatement` → `StatementParserFactory.getParser(bankName)`
    (case-insensitive; throws `IllegalArgumentException` → HTTP 400 for unknown banks).
 3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
-4. Importer applies known account mappings to set `displayName`, and resolves a category for any row
+4. Importer applies known account mappings to set `accountDisplayName`, and resolves a category for any row
    that names one (manual imports only — see below); rows from raw bank parsers carry no category and
    start Uncategorized for the user to classify later.
 5. Importer assigns each operation a `fingerprint` + `occurrence` (duplicate detection) and
@@ -106,7 +106,7 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 ### Manual / JSON ingest (command side)
 `BankStatementController` `POST /api/v1/bank-statements/operations` (JSON `ManualOperationsRequest`:
 `bankName`, optional `source`, list of `operations` with `date`/`description`/`amount`/`account` and
-optional `displayName`/`category`). For already-prepared rows — historical data or banks without a
+optional `accountDisplayName`/`category`). For already-prepared rows — historical data or banks without a
 parser. `StatementImporter.importOperations` builds entities (deriving `type` from amount sign,
 `sourceFileName` from `source`) and runs them through the **same** mapping → category-resolve →
 fingerprint → duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends
@@ -121,17 +121,17 @@ transient `BankingOperation.categoryName` carrier). Raw bank parsers never set a
 ### Duplicate detection
 Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
 SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it is a
-user-editable classification), as are `displayName`/`sourceFileName`. Genuinely identical
+user-editable classification), as are `accountDisplayName`/`sourceFileName`. Genuinely identical
 operations on the same day share a fingerprint and are disambiguated by a zero-based `occurrence`
 index assigned in file order, so re-imports fold onto the same physical rows. Current strategy is
-**overwrite** (copies `displayName` and `sourceFileName` onto the existing row, plus `category`
+**overwrite** (copies `accountDisplayName` and `sourceFileName` onto the existing row, plus `category`
 **only when the incoming row carries one** — so a manual re-import that names a category re-classifies
 the row, while a raw-bank re-import, carrying none, preserves the user's UI assignment); a DB unique
 constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ### Mapping flow (command side)
 - `AccountMappingController` `PUT /api/v1/account-mappings` → `AccountMapper.upsert`
-  (upserts the mapping and back-fills `displayName` on matching operations).
+  (upserts the mapping and back-fills `accountDisplayName` on matching operations).
 
 ### Category flow (command side)
 - `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create, `PUT /{id}`
@@ -164,7 +164,7 @@ Factory keys parsers by lowercase `bankName`.
 - **`ManualCsvParser`** (`bankName="manual"`, UTF-8): WealthStack's **own predefined schema** for
   already-prepared rows (historical data / unparsed banks) — not a bank export. Header row names
   the columns (case-insensitive, order-independent): required `date,bankName,account,description,
-  amount`, optional `displayName,category`. Quote-aware, dot-decimal amounts, `type` from amount
+  amount`, optional `accountDisplayName,category`. Quote-aware, dot-decimal amounts, `type` from amount
   sign. A non-blank `category` must name an existing dictionary entry (resolved at import; unknown
   name → 400); blank/absent leaves the row Uncategorized. Each row carries its own `bankName`, so one
   file may mix banks; the upload `bankName=manual` only selects the parser. JSON equivalent:
