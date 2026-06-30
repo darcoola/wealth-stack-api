@@ -7,7 +7,8 @@
 
 A Spring Boot personal-finance backend that imports bank statement exports (CSV) from
 multiple Polish banks, normalizes them into a single `BankingOperation` model, persists them,
-and lets the user attach human-friendly display names to raw account identifiers.
+lets the user attach human-friendly display names to raw account identifiers, and classify
+operations with a user-curated **category dictionary**.
 
 ## Stack
 
@@ -40,17 +41,22 @@ Run `./gradlew bootRun` (backend on :8088) alongside it. For a backend-only buil
 
 ## Domain model
 
-Two JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
+Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 
 - **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
   `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
   amount sign), `bankName`, `account` (raw account/card identifier), `displayName?` (resolved
-  from mappings), `category` (bank's own transaction type), `sourceFileName?` (provenance;
-  nullable — absent for manual/JSON rows with no source), `fingerprint` +
-  `occurrence` (duplicate-detection identity — see below). Unique constraint on
-  `(fingerprint, occurrence)`.
+  from mappings), `category?` (`@ManyToOne` FK to `Category`, nullable = Uncategorized; set by the
+  user in the UI, or by a **manual** import that names a dictionary category — raw bank parsers
+  never set it), `sourceFileName?` (provenance; nullable — absent for
+  manual/JSON rows with no source), `fingerprint` + `occurrence` (duplicate-detection identity —
+  see below). Unique constraint on `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
   Editing a mapping back-fills `displayName` on all existing operations with that account.
+- **`Category`** (`categories`) — an editable dictionary entry with a unique `name`. Fully
+  user-curated (create / rename / delete) via `CategoryService`; operations point at one by FK.
+  Deleting a category in use first un-assigns it from its operations (FK → null). Shaped to later
+  grow a `parentId` for subcategories.
 
 `OperationType` is `CREDIT`/`DEBIT`. Amount sign drives the type (≥0 = CREDIT).
 
@@ -59,7 +65,9 @@ Two JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 Schema is managed by **Flyway**, not Hibernate. Migrations live in
 `src/main/resources/db/migration` as `V<n>__<description>.sql` and run automatically on startup
 (prod/dev against Postgres, tests against H2 in PostgreSQL mode — H2 support ships in
-`flyway-core`). `V1__create_initial_schema.sql` is the baseline matching the entities above.
+`flyway-core`). `V1__create_initial_schema.sql` is the baseline; `V2` made `source_file_name` nullable; `V3`
+added the `categories` table and replaced `banking_operations.category` (a string) with a nullable
+`category_id` FK (old values discarded — operations start Uncategorized).
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -87,7 +95,9 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 2. `StatementImporter.importStatement` → `StatementParserFactory.getParser(bankName)`
    (case-insensitive; throws `IllegalArgumentException` → HTTP 400 for unknown banks).
 3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
-4. Importer applies known account mappings to set `displayName`.
+4. Importer applies known account mappings to set `displayName`, and resolves a category for any row
+   that names one (manual imports only — see below); rows from raw bank parsers carry no category and
+   start Uncategorized for the user to classify later.
 5. Importer assigns each operation a `fingerprint` + `occurrence` (duplicate detection) and
    **overwrites** any existing row sharing that identity instead of inserting a duplicate, then
    `saveAll`.
@@ -96,28 +106,44 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 ### Manual / JSON ingest (command side)
 `BankStatementController` `POST /api/v1/bank-statements/operations` (JSON `ManualOperationsRequest`:
 `bankName`, optional `source`, list of `operations` with `date`/`description`/`amount`/`account` and
-optional `category`/`displayName`). For already-prepared rows — historical data or banks without a
+optional `displayName`/`category`). For already-prepared rows — historical data or banks without a
 parser. `StatementImporter.importOperations` builds entities (deriving `type` from amount sign,
-`sourceFileName` from `source`) and runs them through the **same** mapping → fingerprint →
-duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends fold onto the
-same rows. Returns the same `ImportResult`.
+`sourceFileName` from `source`) and runs them through the **same** mapping → category-resolve →
+fingerprint → duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends
+fold onto the same rows. Returns the same `ImportResult`.
+
+**Manual imports may carry a category** (the `category` JSON field above, or a `category` CSV column);
+it must name a category that already exists in the dictionary or the whole import is rejected (HTTP
+400). Resolution happens in `persist` (`resolveCategories`), the single place that enforces the
+"require it to exist" rule for both ingest paths (the parsers/JSON only stash the name on the
+transient `BankingOperation.categoryName` carrier). Raw bank parsers never set a category.
 
 ### Duplicate detection
 Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
-SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it will
-become a user-editable classification), as are `displayName`/`sourceFileName`. Genuinely identical
+SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it is a
+user-editable classification), as are `displayName`/`sourceFileName`. Genuinely identical
 operations on the same day share a fingerprint and are disambiguated by a zero-based `occurrence`
 index assigned in file order, so re-imports fold onto the same physical rows. Current strategy is
-**overwrite** (copies `category`, `displayName`, `sourceFileName` onto the existing row); a DB
-unique constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
+**overwrite** (copies `displayName` and `sourceFileName` onto the existing row, plus `category`
+**only when the incoming row carries one** — so a manual re-import that names a category re-classifies
+the row, while a raw-bank re-import, carrying none, preserves the user's UI assignment); a DB unique
+constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ### Mapping flow (command side)
 - `AccountMappingController` `PUT /api/v1/account-mappings` → `AccountMapper.upsert`
   (upserts the mapping and back-fills `displayName` on matching operations).
 
+### Category flow (command side)
+- `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create, `PUT /{id}`
+  rename, `DELETE /{id}` delete (un-assigns from operations first). Names are unique.
+- `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/category`
+  (`{ "categoryId": Long? }`) → `CategoryService.assignToOperation` — assign or, with `null`, clear.
+
 ### Read side (query package)
-- `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`.
+- `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`
+  (now includes `id`, `categoryId`, and the category `name`).
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`.
+- `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name).
 - `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
 
 ## Parsers
@@ -134,9 +160,11 @@ Factory keys parsers by lowercase `bankName`.
 - **`ManualCsvParser`** (`bankName="manual"`, UTF-8): WealthStack's **own predefined schema** for
   already-prepared rows (historical data / unparsed banks) — not a bank export. Header row names
   the columns (case-insensitive, order-independent): required `date,bankName,account,description,
-  amount`, optional `category,displayName`. Quote-aware, dot-decimal amounts, `type` from amount
-  sign. Each row carries its own `bankName`, so one file may mix banks; the upload `bankName=manual`
-  only selects the parser. JSON equivalent: `POST /api/v1/bank-statements/operations` (above).
+  amount`, optional `displayName,category`. Quote-aware, dot-decimal amounts, `type` from amount
+  sign. A non-blank `category` must name an existing dictionary entry (resolved at import; unknown
+  name → 400); blank/absent leaves the row Uncategorized. Each row carries its own `bankName`, so one
+  file may mix banks; the upload `bankName=manual` only selects the parser. JSON equivalent:
+  `POST /api/v1/bank-statements/operations` (above).
 
 **To add a bank:** implement `StatementParser`, register a `@Bean` in `BankStatementConfig`.
 Test fixtures live in `src/test/resources/<bank>-test-statement.csv`.
@@ -158,8 +186,10 @@ frontend/
   angular.json                     # build output → frontend/dist/frontend/browser
 ```
 
-Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Import**,
-**Accounts**, **Reports**. Add a page by creating `pages/<name>/<name>.ts`, a route in
+Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
+**Import**, **Accounts**, **Reports**. The Operations table assigns a category per row via an
+inline `p-select` (`PUT .../operations/{id}/category`); the Categories page is the dictionary CRUD
+(`core/categories.service.ts`). Add a page by creating `pages/<name>/<name>.ts`, a route in
 `app.routes.ts`, and a `MenuItem` in `app.ts`.
 
 **Build integration & serving (single jar):** `build.gradle` uses the `com.github.node-gradle.node`

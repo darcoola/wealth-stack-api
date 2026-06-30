@@ -41,12 +41,20 @@ class ManualCsvParserTest {
     }
 
     @Test
-    fun `optional columns default when blank`() {
+    fun `optional displayName defaults when blank`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
         assertThat(operations[0].displayName).isEqualTo("Old Employer")
-        assertThat(operations[0].category).isEqualTo("income")
         assertThat(operations[1].displayName).isNull()
-        assertThat(operations[1].category).isEqualTo("")
+    }
+
+    @Test
+    fun `captures the category name for the importer to resolve`() {
+        val operations = parser.parse(loadTestCsv(), "test.csv")
+        assertThat(operations[0].categoryName).isEqualTo("income")
+        assertThat(operations[1].categoryName).isNull()   // blank category column
+        assertThat(operations[2].categoryName).isEqualTo("refund")
+        // The parser only captures the name; the category relation stays unresolved until import.
+        assertThat(operations).each { it.prop("category") { it.category }.isNull() }
     }
 
     @Test

@@ -8,7 +8,8 @@ import java.math.BigDecimal
 open class StatementImporter(
     private val parserFactory: StatementParserFactory,
     private val repository: BankingOperationRepository,
-    private val accountMappingRepository: AccountMappingRepository
+    private val accountMappingRepository: AccountMappingRepository,
+    private val categoryRepository: CategoryRepository
 ) {
 
     @Transactional
@@ -33,6 +34,7 @@ open class StatementImporter(
 
     private fun persist(operations: List<BankingOperation>, bankName: String, fileName: String?): ImportResult {
         applyAccountMappings(operations)
+        resolveCategories(operations)
         assignFingerprints(operations)
 
         // Existing rows that could collide with this batch, keyed by their (fingerprint, occurrence)
@@ -74,6 +76,24 @@ open class StatementImporter(
     }
 
     /**
+     * Resolves the category name a manual import carries (see [BankingOperation.categoryName]) to a
+     * dictionary entry, requiring it to already exist — an unknown name fails the whole import
+     * (HTTP 400). Rows without a name (every raw-bank row) are left Uncategorized.
+     */
+    private fun resolveCategories(operations: List<BankingOperation>) {
+        val resolved = HashMap<String, Category>()
+        operations.forEach { op ->
+            val name = op.categoryName?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            op.category = resolved.getOrPut(name) {
+                categoryRepository.findByName(name)
+                    ?: throw IllegalArgumentException(
+                        "Unknown category '$name'. Create it in the dictionary before importing."
+                    )
+            }
+        }
+    }
+
+    /**
      * Sets the content fingerprint on every operation and a zero-based occurrence index that
      * disambiguates operations sharing a fingerprint within this statement (genuinely identical
      * transactions on the same day). File order is stable, so a re-import assigns the same
@@ -87,11 +107,16 @@ open class StatementImporter(
         }
     }
 
-    /** Copies the non-identity fields onto an existing row when overwriting a duplicate. */
+    /**
+     * Copies the non-identity fields onto an existing row when overwriting a duplicate. `category`
+     * is copied only when the incoming row carries one: a manual import that names a category wins
+     * (the file is the source of truth), while a raw-bank re-import (which never carries a category)
+     * preserves whatever the user assigned in the UI.
+     */
     private fun BankingOperation.overwriteWith(incoming: BankingOperation) {
-        category = incoming.category
         displayName = incoming.displayName
         sourceFileName = incoming.sourceFileName
+        incoming.category?.let { category = it }
     }
 
     /** Builds an entity from a JSON-supplied row, deriving the type from the amount sign. */
@@ -103,7 +128,6 @@ open class StatementImporter(
         bankName = bankName,
         account = account,
         displayName = displayName,
-        category = category ?: "",
         sourceFileName = sourceFileName
-    )
+    ).apply { categoryName = this@toEntity.category }
 }

@@ -1,0 +1,74 @@
+<h1 class="page-title">Categories</h1>
+<p class="page-subtitle">Manage the dictionary of categories you assign to operations.</p>
+
+@if (error()) {
+  <div class="error-banner" role="alert">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ error() }}</span>
+  </div>
+}
+
+<div class="add-row">
+  <input
+    pInputText
+    type="text"
+    placeholder="New category name"
+    [ngModel]="newName()"
+    (ngModelChange)="newName.set($event)"
+    (keyup.enter)="add()" />
+  <p-button label="Add" icon="pi pi-plus" (onClick)="add()" [disabled]="!newName().trim()" />
+</div>
+
+<p-table
+  [value]="categories()"
+  [loading]="loading()"
+  sortField="name"
+  [sortOrder]="1"
+  styleClass="p-datatable-sm"
+  dataKey="id">
+  <ng-template pTemplate="header">
+    <tr>
+      <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+      <th style="width: 6rem"></th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-category>
+    <tr>
+      <td [pEditableColumn]="category.name" pEditableColumnField="name">
+        <p-cellEditor>
+          <ng-template pTemplate="input">
+            <input
+              pInputText
+              type="text"
+              [ngModel]="category.name"
+              (ngModelChange)="category.name = $event"
+              (blur)="rename(category, category.name)"
+              (keyup.enter)="rename(category, category.name)" />
+          </ng-template>
+          <ng-template pTemplate="output">
+            <span class="editable-name">{{ category.name }}</span>
+          </ng-template>
+        </p-cellEditor>
+      </td>
+      <td class="text-right">
+        <p-button
+          icon="pi pi-trash"
+          severity="danger"
+          [text]="true"
+          ariaLabel="Delete category"
+          (onClick)="remove(category)" />
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="2" class="empty-cell">
+        @if (!loading()) {
+          No categories yet. Add one above to get started.
+        }
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

@@ -61,10 +61,9 @@ class MBankCsvParserTest {
     }
 
     @Test
-    fun `parses category`() {
+    fun `leaves imported operations uncategorized`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
-        assertThat(operations[0].category).isEqualTo("Paliwo")
-        assertThat(operations[2].category).isEqualTo("Wpływy - inne")
+        assertThat(operations).each { it.prop("category") { it.category }.isNull() }
     }
 
     @Test

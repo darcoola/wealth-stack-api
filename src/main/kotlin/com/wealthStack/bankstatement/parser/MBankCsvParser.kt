@@ -26,7 +26,8 @@ class MBankCsvParser : StatementParser {
         val date = LocalDate.parse(fields[0].trim())
         val description = collapseWhitespace(unquote(fields[1]))
         val account = collapseWhitespace(unquote(fields[2]))
-        val category = collapseWhitespace(unquote(fields[3]))
+        // field[3] is the bank's own transaction type; intentionally ignored — categories are now a
+        // user-curated dictionary, not bank-derived (imports start Uncategorized).
         val amount = parseAmount(fields[4])
         val type = if (amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT
 
@@ -37,7 +38,6 @@ class MBankCsvParser : StatementParser {
             type = type,
             bankName = "mbank",
             account = account,
-            category = category,
             sourceFileName = sourceFileName
         )
     }

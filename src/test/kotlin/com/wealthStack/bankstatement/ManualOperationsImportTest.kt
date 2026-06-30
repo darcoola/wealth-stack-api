@@ -41,7 +41,7 @@ class ManualOperationsImportTest {
               "bankName": "legacy",
               "source": "2024-history",
               "operations": [
-                { "date": "2024-01-15", "description": "Salary", "amount": 5000.00, "account": "ACME 111", "category": "income" },
+                { "date": "2024-01-15", "description": "Salary", "amount": 5000.00, "account": "ACME 111" },
                 { "date": "2024-01-16", "description": "Groceries", "amount": -120.50, "account": "ACME 111" }
               ]
             }

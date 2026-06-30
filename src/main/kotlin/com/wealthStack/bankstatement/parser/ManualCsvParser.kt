@@ -15,14 +15,16 @@ import java.time.LocalDate
  * naming the columns (case-insensitive, order-independent):
  *
  * ```
- * date,bankName,account,description,amount,category,displayName
- * 2024-01-15,legacy,ACME 111,Salary,5000.00,income,
+ * date,bankName,account,description,amount,displayName,category
+ * 2024-01-15,legacy,ACME 111,Salary,5000.00,Old Employer,Income
  * 2024-01-16,legacy,ACME 111,Groceries,-120.50,,
  * ```
  *
  * Required columns: `date` (ISO yyyy-MM-dd), `bankName`, `account`, `description`, `amount`
- * (dot decimal, optional minus). Optional: `category`, `displayName`. `type` is derived from the
- * amount sign.
+ * (dot decimal, optional minus). Optional: `displayName`, `category`. `type` is derived from the
+ * amount sign. A non-blank `category` must name an existing dictionary entry (resolved at import
+ * by [com.wealthStack.bankstatement.StatementImporter]; an unknown name fails the import); blank
+ * or absent leaves the row Uncategorized.
  */
 class ManualCsvParser : StatementParser {
 
@@ -67,9 +69,8 @@ class ManualCsvParser : StatementParser {
             bankName = required("bankname"),
             account = required("account"),
             displayName = optional("displayname"),
-            category = optional("category") ?: "",
             sourceFileName = sourceFileName
-        )
+        ).apply { categoryName = optional("category") }
     }
 
     /** Splits a single CSV line on commas, respecting double-quoted fields and `""` escapes. */
@@ -102,6 +103,6 @@ class ManualCsvParser : StatementParser {
 
     private companion object {
         val REQUIRED_COLUMNS = listOf("date", "bankname", "account", "description", "amount")
-        const val EXPECTED_HEADER = "date,bankName,account,description,amount,category,displayName"
+        const val EXPECTED_HEADER = "date,bankName,account,description,amount,displayName,category"
     }
 }

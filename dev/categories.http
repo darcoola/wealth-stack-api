@@ -1,0 +1,29 @@
+### List all categories
+GET http://localhost:8088/api/v1/categories
+
+### Create a category
+POST http://localhost:8088/api/v1/categories
+Content-Type: application/json
+
+{ "name": "Groceries" }
+
+### Rename a category (replace 1 with a real id)
+PUT http://localhost:8088/api/v1/categories/1
+Content-Type: application/json
+
+{ "name": "Food" }
+
+### Delete a category (operations using it become Uncategorized)
+DELETE http://localhost:8088/api/v1/categories/1
+
+### Assign a category to an operation (replace ids with real ones)
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
+Content-Type: application/json
+
+{ "categoryId": 1 }
+
+### Clear an operation's category (back to Uncategorized)
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
+Content-Type: application/json
+
+{ "categoryId": null }

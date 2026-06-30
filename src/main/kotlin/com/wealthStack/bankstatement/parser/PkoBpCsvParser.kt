@@ -40,7 +40,8 @@ class PkoBpCsvParser : StatementParser {
         require(fields.size >= 6) { "Invalid PKO BP CSV line: expected at least 6 fields" }
 
         val date = LocalDate.parse(fields[0].trim())
-        val transactionType = collapseWhitespace(fields[2])
+        // field[2] ("Typ transakcji") is the bank's own transaction type; intentionally ignored —
+        // categories are now a user-curated dictionary, not bank-derived (imports start Uncategorized).
         val amount = parseAmount(fields[3])
         val type = if (amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT
 
@@ -55,7 +56,6 @@ class PkoBpCsvParser : StatementParser {
             type = type,
             bankName = bankName,
             account = account,
-            category = transactionType,
             sourceFileName = sourceFileName
         )
     }

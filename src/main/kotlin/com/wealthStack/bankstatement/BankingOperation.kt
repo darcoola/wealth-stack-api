@@ -34,8 +34,15 @@ class BankingOperation(
     @Column(length = 500)
     var displayName: String? = null,
 
-    @Column(nullable = false)
-    var category: String,
+    /**
+     * Classification from the editable [Category] dictionary, or `null` (Uncategorized). Set by the
+     * user via the UI, or by a *manual* import that names a dictionary category (raw bank parsers
+     * never set it). Deliberately excluded from the operation fingerprint (see [OperationFingerprint])
+     * so editing it never affects identity/dedup.
+     */
+    @ManyToOne
+    @JoinColumn(name = "category_id")
+    var category: Category? = null,
 
     @Column
     var sourceFileName: String? = null,
@@ -57,4 +64,13 @@ class BankingOperation(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
-)
+) {
+
+    /**
+     * Parse-time carrier for the category name a manual import supplies (CSV `category` column or
+     * JSON `category` field). [StatementImporter] resolves it to a [category] dictionary entry,
+     * requiring the name to already exist. Never persisted; raw bank parsers leave it null.
+     */
+    @Transient
+    var categoryName: String? = null
+}

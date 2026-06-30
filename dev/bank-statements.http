@@ -25,10 +25,11 @@ Content-Type: application/json
   "bankName": "legacy",
   "source": "2024-history",
   "operations": [
-    { "date": "2024-01-15", "description": "Salary", "amount": 5000.00, "account": "ACME 111", "category": "income" },
+    { "date": "2024-01-15", "description": "Salary", "amount": 5000.00, "account": "ACME 111", "category": "Salary" },
     { "date": "2024-01-16", "description": "Groceries", "amount": -120.50, "account": "ACME 111" }
   ]
 }
+# NOTE: a non-blank "category" must already exist in the dictionary (POST /api/v1/categories) or the import is rejected (400).
 
 ### Import prepared rows via the predefined CSV schema (bankName=manual selects the generic parser)
 POST http://localhost:8080/api/v1/bank-statements
@@ -43,8 +44,8 @@ manual
 Content-Disposition: form-data; name="file"; filename="manual.csv"
 Content-Type: text/csv
 
-date,bankName,account,description,amount,category,displayName
-2024-01-15,legacy,ACME 111,Salary,5000.00,income,Old Employer
+date,bankName,account,description,amount,displayName,category
+2024-01-15,legacy,ACME 111,Salary,5000.00,Old Employer,Salary
 2024-01-16,legacy,ACME 111,"Groceries, weekly",-120.50,,
 --boundary--
 

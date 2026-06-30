@@ -12,4 +12,11 @@ export class OperationsService {
   getAll(): Observable<Operation[]> {
     return this.http.get<Operation[]>(this.baseUrl);
   }
+
+  /** Assigns a category to an operation, or clears it (Uncategorized) when `categoryId` is null. */
+  assignCategory(operationId: number, categoryId: number | null): Observable<Operation> {
+    return this.http.put<Operation>(`${this.baseUrl}/operations/${operationId}/category`, {
+      categoryId,
+    });
+  }
 }

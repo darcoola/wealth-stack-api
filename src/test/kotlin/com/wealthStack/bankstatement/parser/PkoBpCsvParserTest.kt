@@ -42,11 +42,16 @@ class PkoBpCsvParserTest {
     }
 
     @Test
-    fun `decodes Windows-1250 Polish characters in category`() {
+    fun `decodes Windows-1250 Polish characters in description`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
-        assertThat(operations[0].category).isEqualTo("Płatność kartą")
-        assertThat(operations[2].category).isEqualTo("Przelew na konto")
-        assertThat(operations[3].category).isEqualTo("Zwrot płatności kartą")
+        assertThat(operations[0].description).contains("Tytuł")
+        assertThat(operations[2].description).contains("PASAŻ")
+    }
+
+    @Test
+    fun `leaves imported operations uncategorized`() {
+        val operations = parser.parse(loadTestCsv(), "test.csv")
+        assertThat(operations).each { it.prop("category") { it.category }.isNull() }
     }
 
     @Test

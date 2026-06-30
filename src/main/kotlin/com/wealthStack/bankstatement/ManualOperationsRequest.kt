@@ -19,6 +19,7 @@ data class ManualOperation(
     val description: String,
     val amount: BigDecimal,
     val account: String,
-    val category: String? = null,
-    val displayName: String? = null
+    val displayName: String? = null,
+    /** Optional dictionary category name; must already exist or the import is rejected. */
+    val category: String? = null
 )

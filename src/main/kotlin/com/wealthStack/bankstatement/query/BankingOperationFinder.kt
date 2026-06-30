@@ -11,10 +11,12 @@ open class BankingOperationFinder(
 }
 
 internal fun BankingOperation.toDto() = OperationDto(
+    id = id!!,
     date = date,
     description = description,
     account = account,
     displayName = displayName ?: account,
     amount = amount,
-    category = category
+    categoryId = category?.id,
+    category = category?.name
 )

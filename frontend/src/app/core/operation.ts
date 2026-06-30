@@ -1,5 +1,7 @@
 /** A single bank operation, mirroring the backend `OperationDto`. */
 export interface Operation {
+  /** Database id, used to (re)assign a category. */
+  id: number;
   /** ISO date, `yyyy-MM-dd`. */
   date: string;
   description: string;
@@ -9,6 +11,8 @@ export interface Operation {
   displayName: string;
   /** Signed amount; negative = debit, non-negative = credit. */
   amount: number;
-  /** The bank's own transaction category. */
-  category: string;
+  /** Assigned category dictionary id, or `null` when Uncategorized. */
+  categoryId: number | null;
+  /** Assigned category name, or `null` when Uncategorized. */
+  category: string | null;
 }

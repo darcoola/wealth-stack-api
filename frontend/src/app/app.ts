@@ -20,6 +20,7 @@ export class App {
   protected readonly menuItems: MenuItem[] = [
     { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/dashboard' },
     { label: 'Operations', icon: 'pi pi-list', routerLink: '/operations' },
+    { label: 'Categories', icon: 'pi pi-tags', routerLink: '/categories' },
     { label: 'Import', icon: 'pi pi-upload', routerLink: '/import' },
     { label: 'Accounts', icon: 'pi pi-id-card', routerLink: '/accounts' },
     { label: 'Reports', icon: 'pi pi-chart-bar', routerLink: '/reports' },
