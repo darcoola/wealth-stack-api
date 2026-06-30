@@ -138,6 +138,10 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   rename, `DELETE /{id}` delete (un-assigns from operations first). Names are unique.
 - `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/category`
   (`{ "categoryId": Long? }`) → `CategoryService.assignToOperation` — assign or, with `null`, clear.
+- `OperationCommandController` bulk actions: `PUT /api/v1/bank-statements/operations/category`
+  (`{ "operationIds": [Long], "categoryId": Long? }`) → `CategoryService.assignToOperations`
+  (bulk assign/clear); `DELETE /api/v1/bank-statements/operations`
+  (`{ "operationIds": [Long] }`) → `OperationCommandService.deleteAll` (permanent bulk delete).
 
 ### Read side (query package)
 - `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`

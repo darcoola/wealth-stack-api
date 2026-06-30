@@ -78,8 +78,15 @@ class BankStatementConfig {
         CategoryController(service)
 
     @Bean
-    fun operationCommandController(service: CategoryService): OperationCommandController =
-        OperationCommandController(service)
+    fun operationCommandService(
+        bankingOperationRepository: BankingOperationRepository
+    ): OperationCommandService = OperationCommandService(bankingOperationRepository)
+
+    @Bean
+    fun operationCommandController(
+        service: CategoryService,
+        operationService: OperationCommandService
+    ): OperationCommandController = OperationCommandController(service, operationService)
 
     @Bean
     fun bankingOperationQueryController(finder: BankingOperationFinder): BankingOperationQueryController =

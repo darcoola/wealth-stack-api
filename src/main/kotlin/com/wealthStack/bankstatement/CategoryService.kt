@@ -54,4 +54,16 @@ open class CategoryService(
         }
         return bankingOperationRepository.save(operation)
     }
+
+    /** Assigns [categoryId] to every given operation, or clears it (Uncategorized) when null. */
+    @Transactional
+    open fun assignToOperations(operationIds: List<Long>, categoryId: Long?): List<BankingOperation> {
+        val category = categoryId?.let {
+            categoryRepository.findById(it)
+                .orElseThrow { IllegalArgumentException("Category $it not found") }
+        }
+        val operations = bankingOperationRepository.findAllById(operationIds)
+        operations.forEach { it.category = category }
+        return bankingOperationRepository.saveAll(operations).toList()
+    }
 }

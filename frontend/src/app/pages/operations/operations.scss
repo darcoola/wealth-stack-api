@@ -3,6 +3,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bulk-count {
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
 }
 
 .text-right {

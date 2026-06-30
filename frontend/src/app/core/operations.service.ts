@@ -19,4 +19,17 @@ export class OperationsService {
       categoryId,
     });
   }
+
+  /** Assigns a category to many operations at once, or clears it when `categoryId` is null. */
+  assignCategoryBulk(operationIds: number[], categoryId: number | null): Observable<Operation[]> {
+    return this.http.put<Operation[]>(`${this.baseUrl}/operations/category`, {
+      operationIds,
+      categoryId,
+    });
+  }
+
+  /** Permanently deletes the given operations. */
+  deleteBulk(operationIds: number[]): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/operations`, { body: { operationIds } });
+  }
 }

@@ -39,6 +39,10 @@ export class Operations {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
 
+  /** Rows checked for a bulk action, and the category chosen in the bulk toolbar. */
+  protected readonly selected = signal<Operation[]>([]);
+  protected readonly bulkCategoryId = signal<number | null>(null);
+
   /** Net of all loaded operations (credits minus debits). */
   protected readonly total = computed(() =>
     this.operations().reduce((sum, op) => sum + op.amount, 0),
@@ -79,6 +83,38 @@ export class Operations {
             o.id === op.id ? { ...o, categoryId: updated.categoryId, category: updated.category } : o,
           ),
         );
+      },
+    });
+  }
+
+  /** Assign the toolbar category to every selected row, then clear the selection. */
+  protected assignSelected(): void {
+    const ids = this.selected().map((o) => o.id);
+    if (ids.length === 0) return;
+    this.service.assignCategoryBulk(ids, this.bulkCategoryId()).subscribe({
+      next: (updated) => {
+        const byId = new Map(updated.map((u) => [u.id, u]));
+        this.operations.update((ops) =>
+          ops.map((o) => {
+            const u = byId.get(o.id);
+            return u ? { ...o, categoryId: u.categoryId, category: u.category } : o;
+          }),
+        );
+        this.selected.set([]);
+      },
+    });
+  }
+
+  /** Delete every selected row (after confirmation), then drop them from the table. */
+  protected deleteSelected(): void {
+    const ids = this.selected().map((o) => o.id);
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} operation(s)? This cannot be undone.`)) return;
+    this.service.deleteBulk(ids).subscribe({
+      next: () => {
+        const removed = new Set(ids);
+        this.operations.update((ops) => ops.filter((o) => !removed.has(o.id)));
+        this.selected.set([]);
       },
     });
   }
