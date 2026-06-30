@@ -1,0 +1,102 @@
+<h1 class="page-title">Accounts</h1>
+<p class="page-subtitle">Give friendly names to your raw account identifiers.</p>
+
+@if (error()) {
+  <div class="error-banner" role="alert">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ error() }}</span>
+  </div>
+}
+
+<div class="add-row">
+  <input
+    pInputText
+    type="text"
+    placeholder="Raw account / card identifier"
+    [ngModel]="newRawAccount()"
+    (ngModelChange)="newRawAccount.set($event)"
+    (keyup.enter)="add()" />
+  <input
+    pInputText
+    type="text"
+    placeholder="Display name"
+    [ngModel]="newDisplayName()"
+    (ngModelChange)="newDisplayName.set($event)"
+    (keyup.enter)="add()" />
+  <p-button
+    label="Add"
+    icon="pi pi-plus"
+    (onClick)="add()"
+    [disabled]="!newRawAccount().trim() || !newDisplayName().trim()" />
+</div>
+
+<p-table
+  [value]="mappings()"
+  [loading]="loading()"
+  sortField="displayName"
+  [sortOrder]="1"
+  styleClass="p-datatable-sm"
+  dataKey="id">
+  <ng-template pTemplate="header">
+    <tr>
+      <th pSortableColumn="rawAccount">Raw account <p-sortIcon field="rawAccount" /></th>
+      <th pSortableColumn="displayName">Display name <p-sortIcon field="displayName" /></th>
+      <th style="width: 6rem"></th>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="body" let-mapping>
+    <tr>
+      <td [pEditableColumn]="mapping.rawAccount" pEditableColumnField="rawAccount">
+        <p-cellEditor>
+          <ng-template pTemplate="input">
+            <input
+              pInputText
+              type="text"
+              [ngModel]="mapping.rawAccount"
+              (ngModelChange)="mapping.rawAccount = $event"
+              (blur)="save(mapping)"
+              (keyup.enter)="save(mapping)" />
+          </ng-template>
+          <ng-template pTemplate="output">
+            <span class="editable-name">{{ mapping.rawAccount }}</span>
+          </ng-template>
+        </p-cellEditor>
+      </td>
+      <td [pEditableColumn]="mapping.displayName" pEditableColumnField="displayName">
+        <p-cellEditor>
+          <ng-template pTemplate="input">
+            <input
+              pInputText
+              type="text"
+              [ngModel]="mapping.displayName"
+              (ngModelChange)="mapping.displayName = $event"
+              (blur)="save(mapping)"
+              (keyup.enter)="save(mapping)" />
+          </ng-template>
+          <ng-template pTemplate="output">
+            <span class="editable-name">{{ mapping.displayName }}</span>
+          </ng-template>
+        </p-cellEditor>
+      </td>
+      <td class="text-right">
+        <p-button
+          icon="pi pi-trash"
+          severity="danger"
+          [text]="true"
+          ariaLabel="Delete mapping"
+          (onClick)="remove(mapping)" />
+      </td>
+    </tr>
+  </ng-template>
+
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="3" class="empty-cell">
+        @if (!loading()) {
+          No account mappings yet. Add one above to give an account a friendly name.
+        }
+      </td>
+    </tr>
+  </ng-template>
+</p-table>

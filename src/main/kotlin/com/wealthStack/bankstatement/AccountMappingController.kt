@@ -6,9 +6,16 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/v1/account-mappings")
 class AccountMappingController(val mapper: AccountMapper) {
 
-    @PutMapping
-    fun upsert(@RequestBody request: AccountMappingRequest): AccountMapping =
-        mapper.upsert(request.rawAccount, request.displayName)
+    @PostMapping
+    fun create(@RequestBody request: AccountMappingRequest): AccountMapping =
+        mapper.create(request.rawAccount, request.displayName)
+
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Long, @RequestBody request: AccountMappingRequest): AccountMapping =
+        mapper.update(id, request.rawAccount, request.displayName)
+
+    @DeleteMapping("/{id}")
+    fun delete(@PathVariable id: Long) = mapper.delete(id)
 }
 
 data class AccountMappingRequest(

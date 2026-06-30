@@ -39,52 +39,17 @@ class AccountMappingTest {
     private fun baseUrl() = "http://localhost:$port"
     private val rest = RestTemplate()
 
-    @Test
-    fun `mapping applied during import`() {
-        // Create a mapping first
-        val mappingHeaders = HttpHeaders()
-        mappingHeaders.contentType = MediaType.APPLICATION_JSON
-
-        rest.exchange(
+    private fun createMapping(rawAccount: String, displayName: String): Map<*, *> {
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        return rest.postForEntity(
             "${baseUrl()}/api/v1/account-mappings",
-            HttpMethod.PUT,
-            HttpEntity(
-                AccountMappingRequest("mKonto Intensive 5611 ... 1026", "mBank ROR"),
-                mappingHeaders
-            ),
+            HttpEntity(AccountMappingRequest(rawAccount, displayName), headers),
             Map::class.java
-        )
-
-        // Import a statement — operations should have accountDisplayName set
-        val body = LinkedMultiValueMap<String, Any>()
-        body.add("file", ClassPathResource("mbank-test-statement.csv"))
-        body.add("bankName", "mbank")
-
-        val uploadHeaders = HttpHeaders()
-        uploadHeaders.contentType = MediaType.MULTIPART_FORM_DATA
-
-        val importResponse = rest.postForEntity(
-            "${baseUrl()}/api/v1/bank-statements",
-            HttpEntity(body, uploadHeaders),
-            Map::class.java
-        )
-
-        assertThat(importResponse.statusCode.value()).isEqualTo(200)
-        assertThat(importResponse.body).isNotNull()
-
-        val operations = importResponse.body!!["operations"] as List<*>
-        assertThat(operations.map { (it as Map<*, *>)["accountDisplayName"] }).each {
-            it.isEqualTo("mBank ROR")
-        }
-        // raw account is preserved
-        assertThat(operations.map { (it as Map<*, *>)["account"] }).each {
-            it.isEqualTo("mKonto Intensive 5611 ... 1026")
-        }
+        ).body!!
     }
 
-    @Test
-    fun `mapping retroactively updates existing operations`() {
-        // Import first — operations will have no accountDisplayName
+    private fun importMbankStatement() {
         val body = LinkedMultiValueMap<String, Any>()
         body.add("file", ClassPathResource("mbank-test-statement.csv"))
         body.add("bankName", "mbank")
@@ -97,27 +62,36 @@ class AccountMappingTest {
             HttpEntity(body, uploadHeaders),
             Map::class.java
         )
+    }
 
-        // Now create/update a mapping — should set accountDisplayName on existing operations
-        val mappingHeaders = HttpHeaders()
-        mappingHeaders.contentType = MediaType.APPLICATION_JSON
+    private fun fetchOperations(): List<Map<*, *>> = rest.getForEntity(
+        "${baseUrl()}/api/v1/bank-statements",
+        List::class.java
+    ).body!!.filterIsInstance<Map<*, *>>()
 
-        rest.exchange(
-            "${baseUrl()}/api/v1/account-mappings",
-            HttpMethod.PUT,
-            HttpEntity(
-                AccountMappingRequest("mKonto Intensive 5611 ... 1026", "mBank Retroactive"),
-                mappingHeaders
-            ),
-            Map::class.java
-        )
+    @Test
+    fun `mapping applied during import`() {
+        createMapping("mKonto Intensive 5611 ... 1026", "mBank ROR")
+        importMbankStatement()
 
-        // Verify via GET
-        val allOps = rest.getForEntity(
-            "${baseUrl()}/api/v1/bank-statements",
-            List::class.java
-        )
-        val ops = allOps.body!!.filterIsInstance<Map<*, *>>()
+        val operations = fetchOperations()
+        assertThat(operations.map { it["accountDisplayName"] }).each {
+            it.isEqualTo("mBank ROR")
+        }
+        // raw account is preserved
+        assertThat(operations.map { it["account"] }).each {
+            it.isEqualTo("mKonto Intensive 5611 ... 1026")
+        }
+    }
+
+    @Test
+    fun `creating a mapping retroactively updates existing operations`() {
+        // Import first — operations will have no accountDisplayName
+        importMbankStatement()
+
+        createMapping("mKonto Intensive 5611 ... 1026", "mBank Retroactive")
+
+        val ops = fetchOperations()
         val displayNames = ops.map { it["accountDisplayName"] }.distinct()
         assertThat(displayNames).each {
             it.isEqualTo("mBank Retroactive")
@@ -130,38 +104,62 @@ class AccountMappingTest {
     }
 
     @Test
-    fun `upsert updates existing mapping`() {
+    fun `update changes an existing mapping by id and re-applies the new name`() {
+        importMbankStatement()
+        val created = createMapping("mKonto Intensive 5611 ... 1026", "Name V1")
+        val id = (created["id"] as Number).toLong()
+
         val headers = HttpHeaders()
         headers.contentType = MediaType.APPLICATION_JSON
-
-        // Create
-        rest.exchange(
-            "${baseUrl()}/api/v1/account-mappings",
-            HttpMethod.PUT,
-            HttpEntity(AccountMappingRequest("raw-account-1", "Name V1"), headers),
-            Map::class.java
-        )
-
-        // Update
         val updateResponse = rest.exchange(
-            "${baseUrl()}/api/v1/account-mappings",
+            "${baseUrl()}/api/v1/account-mappings/$id",
             HttpMethod.PUT,
-            HttpEntity(AccountMappingRequest("raw-account-1", "Name V2"), headers),
+            HttpEntity(AccountMappingRequest("mKonto Intensive 5611 ... 1026", "Name V2"), headers),
             Map::class.java
         )
 
         assertThat(updateResponse.statusCode.value()).isEqualTo(200)
         assertThat(updateResponse.body!!["displayName"]).isEqualTo("Name V2")
 
-        // Verify via GET
+        // operations reflect the renamed mapping
+        assertThat(fetchOperations().map { it["accountDisplayName"] }.distinct()).each {
+            it.isEqualTo("Name V2")
+        }
+    }
+
+    @Test
+    fun `delete removes the mapping and reverts operations to the raw account`() {
+        importMbankStatement()
+        val created = createMapping("mKonto Intensive 5611 ... 1026", "mBank ROR")
+        val id = (created["id"] as Number).toLong()
+
+        rest.delete("${baseUrl()}/api/v1/account-mappings/$id")
+
+        // accountDisplayName cleared, so the read model falls back to the raw account
+        assertThat(fetchOperations().map { it["accountDisplayName"] }).each {
+            it.isEqualTo("mKonto Intensive 5611 ... 1026")
+        }
+
+        val mappings = rest.getForEntity(
+            "${baseUrl()}/api/v1/account-mappings",
+            List::class.java
+        )
+        assertThat(mappings.body).isNotNull()
+        assertThat(mappings.body!!.size).isEqualTo(0)
+    }
+
+    @Test
+    fun `listing returns mappings with id, raw account, and display name`() {
+        createMapping("raw-account-1", "Name V1")
+
         val allResponse = rest.getForEntity(
             "${baseUrl()}/api/v1/account-mappings",
             List::class.java
         )
-        val mappings = allResponse.body!!
-        val matching = mappings.filterIsInstance<Map<*, *>>()
+        val matching = allResponse.body!!.filterIsInstance<Map<*, *>>()
             .filter { it["rawAccount"] == "raw-account-1" }
         assertThat(matching.size).isEqualTo(1)
-        assertThat(matching[0]["displayName"]).isEqualTo("Name V2")
+        assertThat(matching[0]["displayName"]).isEqualTo("Name V1")
+        assertThat(matching[0]["id"]).isNotNull()
     }
 }

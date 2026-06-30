@@ -15,6 +15,7 @@ data class OperationDto(
 )
 
 data class AccountMappingDto(
+    val id: Long,
     val rawAccount: String,
     val displayName: String
 )

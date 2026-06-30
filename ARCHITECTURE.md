@@ -130,8 +130,10 @@ the row, while a raw-bank re-import, carrying none, preserves the user's UI assi
 constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ### Mapping flow (command side)
-- `AccountMappingController` `PUT /api/v1/account-mappings` → `AccountMapper.upsert`
-  (upserts the mapping and back-fills `accountDisplayName` on matching operations).
+- `AccountMappingController` (`/api/v1/account-mappings`) → `AccountMapper`: `POST` create,
+  `PUT /{id}` update, `DELETE /{id}` delete. `rawAccount` is unique. Every change back-fills the
+  denormalized `accountDisplayName` on operations with that raw account; delete (and editing a
+  mapping's `rawAccount`) clears it on the orphaned operations so they revert to the raw account.
 
 ### Category flow (command side)
 - `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create, `PUT /{id}`
@@ -146,7 +148,8 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 ### Read side (query package)
 - `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`
   (now includes `id`, `categoryId`, and the category `name`).
-- `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`.
+- `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
+  (id + rawAccount + displayName), sorted by display name.
 - `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name).
 - `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
 
