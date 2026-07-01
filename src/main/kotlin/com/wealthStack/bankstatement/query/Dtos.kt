@@ -24,3 +24,10 @@ data class CategoryDto(
     val id: Long,
     val name: String
 )
+
+data class MonthlyCategoryTotalDto(
+    val month: String,        // "YYYY-MM"
+    val categoryId: Long?,    // null = Uncategorized
+    val category: String?,    // null -> frontend shows "Uncategorized"
+    val total: BigDecimal     // already mode-adjusted
+)

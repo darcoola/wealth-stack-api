@@ -11,6 +11,8 @@ import com.wealthStack.bankstatement.query.BankingOperationFinder
 import com.wealthStack.bankstatement.query.BankingOperationQueryController
 import com.wealthStack.bankstatement.query.CategoryFinder
 import com.wealthStack.bankstatement.query.CategoryQueryController
+import com.wealthStack.bankstatement.query.ReportFinder
+import com.wealthStack.bankstatement.query.ReportQueryController
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -66,6 +68,11 @@ class BankStatementConfig {
     ): CategoryFinder = CategoryFinder(repository)
 
     @Bean
+    fun reportFinder(
+        repository: BankingOperationRepository
+    ): ReportFinder = ReportFinder(repository)
+
+    @Bean
     fun bankStatementController(importer: StatementImporter): BankStatementController =
         BankStatementController(importer)
 
@@ -99,4 +106,8 @@ class BankStatementConfig {
     @Bean
     fun categoryQueryController(finder: CategoryFinder): CategoryQueryController =
         CategoryQueryController(finder)
+
+    @Bean
+    fun reportQueryController(finder: ReportFinder): ReportQueryController =
+        ReportQueryController(finder)
 }

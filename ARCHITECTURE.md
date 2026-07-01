@@ -67,7 +67,8 @@ Schema is managed by **Flyway**, not Hibernate. Migrations live in
 (prod/dev against Postgres, tests against H2 in PostgreSQL mode — H2 support ships in
 `flyway-core`). `V1__create_initial_schema.sql` is the baseline; `V2` made `source_file_name` nullable; `V3`
 added the `categories` table and replaced `banking_operations.category` (a string) with a nullable
-`category_id` FK (old values discarded — operations start Uncategorized).
+`category_id` FK (old values discarded — operations start Uncategorized). `V5` added report indices
+on `banking_operations (date)` and `(category_id)`.
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -151,6 +152,13 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
   (id + rawAccount + displayName), sorted by display name.
 - `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name).
+- `ReportQueryController` `GET /api/v1/reports/category-monthly-totals?mode=all|spendings|income`
+  → `MonthlyCategoryTotalDto` list (one per `(month, category)` bucket, `month` = `YYYY-MM`,
+  Uncategorized = null category). `ReportFinder` runs one aggregation query
+  (`BankingOperationRepository.aggregateByMonthAndCategory`, the only `@Query`/GROUP BY in the code;
+  `LEFT JOIN` keeps Uncategorized, splits credit/debit sums) and collapses each bucket per the
+  `AmountMode` (`ALL` = net signed, `SPENDINGS` = debit magnitude, `INCOME` = credits). Returns all
+  months; the frontend filters/pivots client-side.
 - `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
 
 ## Parsers
@@ -196,8 +204,12 @@ frontend/
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
 **Import**, **Accounts**, **Reports**. The Operations table assigns a category per row via an
 inline `p-select` (`PUT .../operations/{id}/category`); the Categories page is the dictionary CRUD
-(`core/categories.service.ts`). Add a page by creating `pages/<name>/<name>.ts`, a route in
-`app.routes.ts`, and a `MenuItem` in `app.ts`.
+(`core/categories.service.ts`). The **Reports** page (`pages/reports/`, `core/reports.service.ts`)
+has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`, needs the `chart.js`
+peer dep): Monthly = grouped bar (categories on X, one bar per picked month), Yearly = line (12
+months of a chosen year, per-category or "All categories"); a shared Spendings/Income/All amount
+selector refetches, all other selection is client-side. Add a page by creating
+`pages/<name>/<name>.ts`, a route in `app.routes.ts`, and a `MenuItem` in `app.ts`.
 
 **Build integration & serving (single jar):** `build.gradle` uses the `com.github.node-gradle.node`
 plugin (it downloads a pinned **Node 26.4.0** for reproducibility). `frontendBuild` runs the npm
