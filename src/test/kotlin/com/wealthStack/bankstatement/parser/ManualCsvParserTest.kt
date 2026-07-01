@@ -56,6 +56,21 @@ class ManualCsvParserTest {
     }
 
     @Test
+    fun `parses a quoted field that spans multiple physical lines`() {
+        val header = "date,bankName,account,description,amount"
+        val operations = parser.parse(
+            "$header\r\n" +
+                "2025-11-02,manual,Revolut,\"Gross interest\r\nEarned on 2025/11/02\",\"0,01\"\r\n" +
+                "2025-11-03,manual,Revolut,Salary,\"9,89\"",
+            "test.csv"
+        )
+        assertThat(operations).hasSize(2)
+        assertThat(operations[0].description).isEqualTo("Gross interest\r\nEarned on 2025/11/02")
+        assertThat(operations[0].amount).isEqualTo(BigDecimal("0.01"))
+        assertThat(operations[1].description).isEqualTo("Salary")
+    }
+
+    @Test
     fun `optional accountDisplayName defaults when blank`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
         assertThat(operations[0].accountDisplayName).isEqualTo("Old Employer")

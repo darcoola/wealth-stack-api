@@ -32,10 +32,10 @@ class ManualCsvParser : StatementParser {
     override val bankName: String = "manual"
 
     override fun parse(content: String, sourceFileName: String): List<BankingOperation> {
-        val lines = content.lines().filter { it.isNotBlank() }
-        require(lines.isNotEmpty()) { "Manual CSV is empty" }
+        val records = parseCsvRecords(content)
+        require(records.isNotEmpty()) { "Manual CSV is empty" }
 
-        val columnIndex = parseCsvLine(lines.first())
+        val columnIndex = records.first()
             .withIndex()
             .associate { (index, name) -> name.trim().lowercase() to index }
         REQUIRED_COLUMNS.forEach { column ->
@@ -44,18 +44,19 @@ class ManualCsvParser : StatementParser {
             }
         }
 
-        return lines.drop(1).map { parseLine(it, columnIndex, sourceFileName) }
+        return records.drop(1).map { parseRecord(it, columnIndex, sourceFileName) }
     }
 
-    private fun parseLine(
-        line: String,
+    private fun parseRecord(
+        fields: List<String>,
         columnIndex: Map<String, Int>,
         sourceFileName: String
     ): BankingOperation {
-        val fields = parseCsvLine(line)
         fun required(column: String): String {
             val value = fields.getOrNull(columnIndex.getValue(column))?.trim()
-            require(!value.isNullOrEmpty()) { "Manual CSV row missing value for required column '$column': $line" }
+            require(!value.isNullOrEmpty()) {
+                "Manual CSV row missing value for required column '$column': ${fields.joinToString(",")}"
+            }
             return value
         }
         fun optional(column: String): String? =
@@ -74,30 +75,48 @@ class ManualCsvParser : StatementParser {
         ).apply { categoryName = optional("category") }
     }
 
-    /** Splits a single CSV line on commas, respecting double-quoted fields and `""` escapes. */
-    private fun parseCsvLine(line: String): List<String> {
+    /**
+     * Tokenizes the whole file into records of fields, respecting double-quoted fields and `""`
+     * escapes. A record ends on a newline (`\n` or `\r\n`) only when not inside quotes, so a
+     * quoted field may span multiple physical lines (e.g. a description with an embedded newline).
+     * Blank records (from empty lines) are dropped.
+     */
+    private fun parseCsvRecords(content: String): List<List<String>> {
+        val records = mutableListOf<List<String>>()
         val fields = mutableListOf<String>()
         val current = StringBuilder()
         var inQuotes = false
+
+        fun endField() {
+            fields.add(current.toString())
+            current.clear()
+        }
+        fun endRecord() {
+            endField()
+            if (fields.size > 1 || fields.first().isNotBlank()) records.add(fields.toList())
+            fields.clear()
+        }
+
         var i = 0
-        while (i < line.length) {
-            val c = line[i]
+        while (i < content.length) {
+            val c = content[i]
             when {
-                c == '"' && inQuotes && i + 1 < line.length && line[i + 1] == '"' -> {
+                c == '"' && inQuotes && i + 1 < content.length && content[i + 1] == '"' -> {
                     current.append('"')
                     i++
                 }
                 c == '"' -> inQuotes = !inQuotes
-                c == ',' && !inQuotes -> {
-                    fields.add(current.toString())
-                    current.clear()
+                c == ',' && !inQuotes -> endField()
+                (c == '\n' || c == '\r') && !inQuotes -> {
+                    endRecord()
+                    if (c == '\r' && i + 1 < content.length && content[i + 1] == '\n') i++
                 }
                 else -> current.append(c)
             }
             i++
         }
-        fields.add(current.toString())
-        return fields
+        if (current.isNotEmpty() || fields.isNotEmpty()) endRecord()
+        return records
     }
 
     /**
