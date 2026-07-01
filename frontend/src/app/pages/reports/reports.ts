@@ -6,12 +6,12 @@ import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
-import { SelectButtonModule } from 'primeng/selectbutton';
 import { TabsModule } from 'primeng/tabs';
-import { AmountMode, MonthlyCategoryTotal } from '../../core/report';
+import { CategoryType } from '../../core/category';
+import { MonthlyCategoryTotal } from '../../core/report';
 import { ReportsService } from '../../core/reports.service';
 
-/** Distinct, high-contrast series colours cycled across months / used for the yearly line. */
+/** Distinct, high-contrast series colours cycled across months (bars) / categories (lines). */
 const PALETTE = [
   '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
   '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
@@ -39,7 +39,6 @@ interface CategoryBucket {
     ChartModule,
     DatePickerModule,
     SelectModule,
-    SelectButtonModule,
     TabsModule,
   ],
   templateUrl: './reports.html',
@@ -48,23 +47,15 @@ interface CategoryBucket {
 export class Reports {
   private readonly service = inject(ReportsService);
 
-  protected readonly mode = signal<AmountMode>('all');
   protected readonly rows = signal<MonthlyCategoryTotal[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly modeOptions = [
-    { label: 'All', value: 'all' as AmountMode },
-    { label: 'Spendings', value: 'spendings' as AmountMode },
-    { label: 'Income', value: 'income' as AmountMode },
-  ];
-
   // ----- Monthly tab: a set of picked months compared side-by-side as grouped bars. -----
   protected readonly selectedMonthDates = signal<Date[]>([previousMonth()]);
 
-  // ----- Yearly tab: a single year's 12 months as a line, filtered by category. -----
+  // ----- Yearly tab: a single year's 12 months as one line per category. -----
   protected readonly selectedYear = signal<number | null>(null);
-  protected readonly selectedCategory = signal<CategoryKey | 'all'>('all');
 
   constructor() {
     this.load();
@@ -73,7 +64,7 @@ export class Reports {
   protected load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.service.getCategoryMonthlyTotals(this.mode()).subscribe({
+    this.service.getCategoryMonthlyTotals().subscribe({
       next: (rows) => {
         this.rows.set(rows);
         this.loading.set(false);
@@ -86,22 +77,25 @@ export class Reports {
     });
   }
 
-  /** The amount mode is a backend param, so switching it refetches. */
-  protected setMode(mode: AmountMode): void {
-    if (mode === this.mode()) return;
-    this.mode.set(mode);
-    this.load();
-  }
-
   // ---- Shared derived state ----
 
   private readonly monthsWithData = computed(() => new Set(this.rows().map((r) => r.month)));
 
-  /** Every category present in the data, sorted alphabetically with Uncategorized last. */
-  protected readonly categories = computed<CategoryBucket[]>(() => {
+  /** Which chart a row belongs to: its category type, with Uncategorized folded into Spending. */
+  private group(row: MonthlyCategoryTotal): CategoryType {
+    return row.categoryType ?? 'SPENDING';
+  }
+
+  private keyOf(row: MonthlyCategoryTotal): CategoryKey {
+    return row.categoryId ?? 'uncategorized';
+  }
+
+  /** Distinct categories of one type, sorted alphabetically with Uncategorized last. */
+  private categoriesForType(type: CategoryType): CategoryBucket[] {
     const byKey = new Map<CategoryKey, CategoryBucket>();
     for (const r of this.rows()) {
-      const key: CategoryKey = r.categoryId ?? 'uncategorized';
+      if (this.group(r) !== type) continue;
+      const key = this.keyOf(r);
       if (!byKey.has(key)) byKey.set(key, { key, label: r.category ?? 'Uncategorized' });
     }
     return [...byKey.values()].sort((a, b) => {
@@ -109,7 +103,10 @@ export class Reports {
       if (b.key === 'uncategorized') return -1;
       return a.label.localeCompare(b.label);
     });
-  });
+  }
+
+  protected readonly spendingCategories = computed(() => this.categoriesForType('SPENDING'));
+  protected readonly incomeCategories = computed(() => this.categoriesForType('INCOME'));
 
   protected readonly availableYears = computed(() =>
     [...new Set(this.rows().map((r) => Number(r.month.slice(0, 4))))].sort((a, b) => b - a),
@@ -120,19 +117,16 @@ export class Reports {
   /**
    * Seeds selections from the data on first load: the latest year, and (for the Monthly tab) the
    * latest month that actually has operations — so the charts land on real data instead of an empty
-   * current month. Later refetches (mode changes) keep the user's picks.
+   * current month.
    */
   private applyDefaults(): void {
+    if (this.defaultsApplied) return;
+    this.defaultsApplied = true;
     const years = this.availableYears();
-    if (years.length && !years.includes(this.selectedYear() ?? NaN)) {
-      this.selectedYear.set(years[0]);
-    }
-    if (!this.defaultsApplied) {
-      this.defaultsApplied = true;
-      const months = [...this.monthsWithData()].sort();
-      if (months.length) {
-        this.selectedMonthDates.set([dateFromMonthKey(months[months.length - 1])]);
-      }
+    if (years.length) this.selectedYear.set(years[0]);
+    const months = [...this.monthsWithData()].sort();
+    if (months.length) {
+      this.selectedMonthDates.set([dateFromMonthKey(months[months.length - 1])]);
     }
   }
 
@@ -150,13 +144,19 @@ export class Reports {
     this.selectedMonths().filter((m) => !this.monthsWithData().has(m)),
   );
 
+  protected readonly spendingMonthlyData = computed(() =>
+    this.monthlyChartData(this.spendingCategories()),
+  );
+  protected readonly incomeMonthlyData = computed(() =>
+    this.monthlyChartData(this.incomeCategories()),
+  );
+
   /** Grouped bars: categories on the X-axis, one bar (dataset) per selected month. */
-  protected readonly monthlyChartData = computed(() => {
-    const categories = this.categories();
+  private monthlyChartData(categories: CategoryBucket[]) {
     const months = this.selectedMonths();
     const totals = new Map<string, number>();
     for (const r of this.rows()) {
-      totals.set(`${r.month}::${r.categoryId ?? 'uncategorized'}`, r.total);
+      totals.set(`${r.month}::${this.keyOf(r)}`, r.total);
     }
     return {
       labels: categories.map((c) => c.label),
@@ -166,48 +166,47 @@ export class Reports {
         data: categories.map((c) => totals.get(`${m}::${c.key}`) ?? 0),
       })),
     };
-  });
+  }
 
-  protected readonly monthlyChartOptions = computed(() => this.barOptions());
+  protected readonly barOptions = computed(() => this.chartOptions(true));
 
   // ---- Yearly tab ----
 
-  protected readonly categoryOptions = computed(() => [
-    { label: 'All categories', value: 'all' as const },
-    ...this.categories().map((c) => ({ label: c.label, value: c.key })),
-  ]);
+  protected readonly spendingYearlyData = computed(() =>
+    this.yearlyChartData(this.spendingCategories()),
+  );
+  protected readonly incomeYearlyData = computed(() =>
+    this.yearlyChartData(this.incomeCategories()),
+  );
 
-  /** A single line: each of the year's 12 months, filtered to the selected category. */
-  protected readonly yearlyChartData = computed(() => {
+  /** One line per category across the selected year's 12 months. */
+  private yearlyChartData(categories: CategoryBucket[]) {
     const year = this.selectedYear();
-    const cat = this.selectedCategory();
-    const data = MONTH_NAMES.map((_, i) => {
-      if (year == null) return 0;
-      const key = `${year}-${String(i + 1).padStart(2, '0')}`;
-      return this.rows()
-        .filter((r) => r.month === key && (cat === 'all' || (r.categoryId ?? 'uncategorized') === cat))
-        .reduce((sum, r) => sum + r.total, 0);
-    });
+    const totals = new Map<string, number>();
+    for (const r of this.rows()) {
+      totals.set(`${r.month}::${this.keyOf(r)}`, r.total);
+    }
     return {
       labels: MONTH_NAMES,
-      datasets: [
-        {
-          label: this.categoryOptions().find((o) => o.value === cat)?.label ?? 'Total',
-          data,
-          borderColor: PALETTE[0],
-          backgroundColor: PALETTE[0],
-          tension: 0.3,
-          fill: false,
-        },
-      ],
+      datasets: categories.map((c, i) => ({
+        label: c.label,
+        data: MONTH_NAMES.map((_, mi) => {
+          if (year == null) return 0;
+          return totals.get(`${year}-${String(mi + 1).padStart(2, '0')}::${c.key}`) ?? 0;
+        }),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: PALETTE[i % PALETTE.length],
+        tension: 0.3,
+        fill: false,
+      })),
     };
-  });
+  }
 
-  protected readonly yearlyChartOptions = computed(() => this.lineOptions());
+  protected readonly lineOptions = computed(() => this.chartOptions(false));
 
   // ---- Chart options (themed from the current PrimeNG CSS variables) ----
 
-  private barOptions() {
+  private chartOptions(beginAtZero: boolean) {
     const text = cssVar('--p-text-color', '#334155');
     const grid = cssVar('--p-content-border-color', '#e2e8f0');
     return {
@@ -216,14 +215,9 @@ export class Reports {
       plugins: { legend: { position: 'top', labels: { color: text } } },
       scales: {
         x: { ticks: { color: text }, grid: { color: grid } },
-        y: { beginAtZero: true, ticks: { color: text }, grid: { color: grid } },
+        y: { beginAtZero, ticks: { color: text }, grid: { color: grid } },
       },
     };
-  }
-
-  private lineOptions() {
-    const opts = this.barOptions();
-    return { ...opts, plugins: { legend: { display: false } } };
   }
 }
 

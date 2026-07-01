@@ -9,17 +9,6 @@
   </div>
 }
 
-<div class="mode-bar">
-  <span class="mode-label">Amount</span>
-  <p-selectButton
-    [options]="modeOptions"
-    optionLabel="label"
-    optionValue="value"
-    [ngModel]="mode()"
-    (onChange)="setMode($event.value)"
-    [allowEmpty]="false" />
-</div>
-
 <p-tabs value="monthly">
   <p-tablist>
     <p-tab value="monthly">Monthly</p-tab>
@@ -52,9 +41,27 @@
       }
 
       @if (selectedMonths().length) {
-        <div class="chart-wrap">
-          <p-chart type="bar" [data]="monthlyChartData()" [options]="monthlyChartOptions()" />
-        </div>
+        <section class="chart-section">
+          <h2 class="chart-title">Spending</h2>
+          @if (spendingCategories().length) {
+            <div class="chart-wrap">
+              <p-chart type="bar" [data]="spendingMonthlyData()" [options]="barOptions()" />
+            </div>
+          } @else {
+            <p class="empty-hint">No spending categories yet.</p>
+          }
+        </section>
+
+        <section class="chart-section">
+          <h2 class="chart-title">Income</h2>
+          @if (incomeCategories().length) {
+            <div class="chart-wrap">
+              <p-chart type="bar" [data]="incomeMonthlyData()" [options]="barOptions()" />
+            </div>
+          } @else {
+            <p class="empty-hint">No income categories yet.</p>
+          }
+        </section>
       } @else {
         <p-card>
           <p class="empty-hint">Pick one or more months above to compare categories.</p>
@@ -62,7 +69,7 @@
       }
     </p-tabpanel>
 
-    <!-- Yearly: 12 months of a chosen year as a line, filtered by category. -->
+    <!-- Yearly: 12 months of a chosen year, one line per category, split by type. -->
     <p-tabpanel value="yearly">
       <div class="controls">
         <span class="control-label">Year</span>
@@ -72,20 +79,30 @@
           (onChange)="selectedYear.set($event.value)"
           placeholder="Year"
           appendTo="body" />
-        <span class="control-label">Category</span>
-        <p-select
-          [options]="categoryOptions()"
-          optionLabel="label"
-          optionValue="value"
-          [ngModel]="selectedCategory()"
-          (onChange)="selectedCategory.set($event.value)"
-          appendTo="body" />
       </div>
 
       @if (selectedYear() != null) {
-        <div class="chart-wrap">
-          <p-chart type="line" [data]="yearlyChartData()" [options]="yearlyChartOptions()" />
-        </div>
+        <section class="chart-section">
+          <h2 class="chart-title">Spending</h2>
+          @if (spendingCategories().length) {
+            <div class="chart-wrap">
+              <p-chart type="line" [data]="spendingYearlyData()" [options]="lineOptions()" />
+            </div>
+          } @else {
+            <p class="empty-hint">No spending categories yet.</p>
+          }
+        </section>
+
+        <section class="chart-section">
+          <h2 class="chart-title">Income</h2>
+          @if (incomeCategories().length) {
+            <div class="chart-wrap">
+              <p-chart type="line" [data]="incomeYearlyData()" [options]="lineOptions()" />
+            </div>
+          } @else {
+            <p class="empty-hint">No income categories yet.</p>
+          }
+        </section>
       } @else {
         <p-card>
           <p class="empty-hint">No data yet. Import a statement to see yearly trends.</p>

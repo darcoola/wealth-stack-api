@@ -53,8 +53,10 @@ Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
   see below). Unique constraint on `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
   Editing a mapping back-fills `accountDisplayName` on all existing operations with that account.
-- **`Category`** (`categories`) — an editable dictionary entry with a unique `name`. Fully
-  user-curated (create / rename / delete) via `CategoryService`; operations point at one by FK.
+- **`Category`** (`categories`) — an editable dictionary entry with a unique `name` and a `type`
+  (`CategoryType`: `SPENDING` | `INCOME`, string-enum column, default `SPENDING`). The type drives
+  reporting: totals are summed as-is (no debit/credit split) and charts split by type, not amount
+  sign. Fully user-curated (create / rename / retype / delete) via `CategoryService`; operations point at one by FK.
   Deleting a category in use first un-assigns it from its operations (FK → null). Shaped to later
   grow a `parentId` for subcategories.
 
@@ -68,7 +70,8 @@ Schema is managed by **Flyway**, not Hibernate. Migrations live in
 `flyway-core`). `V1__create_initial_schema.sql` is the baseline; `V2` made `source_file_name` nullable; `V3`
 added the `categories` table and replaced `banking_operations.category` (a string) with a nullable
 `category_id` FK (old values discarded — operations start Uncategorized). `V5` added report indices
-on `banking_operations (date)` and `(category_id)`.
+on `banking_operations (date)` and `(category_id)`. `V6` added `categories.type`
+(spending/income; existing rows backfilled `SPENDING`).
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -137,8 +140,10 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   mapping's `rawAccount`) clears it on the orphaned operations so they revert to the raw account.
 
 ### Category flow (command side)
-- `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create, `PUT /{id}`
-  rename, `DELETE /{id}` delete (un-assigns from operations first). Names are unique.
+- `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create (`{ name, type? }`,
+  type defaults `SPENDING`), `PUT /{id}` update name + type (`{ name, type? }`; omitting `type`
+  keeps it — `rename` delegates here), `DELETE /{id}` delete (un-assigns from operations first).
+  Names are unique.
 - `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/category`
   (`{ "categoryId": Long? }`) → `CategoryService.assignToOperation` — assign or, with `null`, clear.
 - `OperationCommandController` bulk actions: `PUT /api/v1/bank-statements/operations/category`
@@ -151,14 +156,14 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   (now includes `id`, `categoryId`, and the category `name`).
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
   (id + rawAccount + displayName), sorted by display name.
-- `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name).
-- `ReportQueryController` `GET /api/v1/reports/category-monthly-totals?mode=all|spendings|income`
+- `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name + type).
+- `ReportQueryController` `GET /api/v1/reports/category-monthly-totals`
   → `MonthlyCategoryTotalDto` list (one per `(month, category)` bucket, `month` = `YYYY-MM`,
-  Uncategorized = null category). `ReportFinder` runs one aggregation query
+  `categoryType` = the category's type or null for Uncategorized, `total` = signed `SUM(amount)`
+  as-is). `ReportFinder` just maps one aggregation query
   (`BankingOperationRepository.aggregateByMonthAndCategory`, the only `@Query`/GROUP BY in the code;
-  `LEFT JOIN` keeps Uncategorized, splits credit/debit sums) and collapses each bucket per the
-  `AmountMode` (`ALL` = net signed, `SPENDINGS` = debit magnitude, `INCOME` = credits). Returns all
-  months; the frontend filters/pivots client-side.
+  `LEFT JOIN` keeps Uncategorized). No mode param — the frontend splits rows by `categoryType`
+  into separate spending/income charts and filters/pivots client-side.
 - `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
 
 ## Parsers
@@ -204,12 +209,15 @@ frontend/
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
 **Import**, **Accounts**, **Reports**. The Operations table assigns a category per row via an
 inline `p-select` (`PUT .../operations/{id}/category`); the Categories page is the dictionary CRUD
-(`core/categories.service.ts`). The **Reports** page (`pages/reports/`, `core/reports.service.ts`)
-has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`, needs the `chart.js`
-peer dep): Monthly = grouped bar (categories on X, one bar per picked month), Yearly = line (12
-months of a chosen year, per-category or "All categories"); a shared Spendings/Income/All amount
-selector refetches, all other selection is client-side. Add a page by creating
-`pages/<name>/<name>.ts`, a route in `app.routes.ts`, and a `MenuItem` in `app.ts`.
+(`core/categories.service.ts`) — each row's spending/income `type` is editable via an inline
+`p-select`, and the add-row sets the new category's type. The **Reports** page (`pages/reports/`,
+`core/reports.service.ts`) has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`,
+needs the `chart.js` peer dep); each tab renders **two** charts, one Spending and one Income (rows
+split client-side by `categoryType`, Uncategorized folded into Spending): Monthly = grouped bar
+(categories on X, one bar per picked month), Yearly = line (12 months of a chosen year, one line
+per category). Totals are shown as-is (spending negative, income positive); one fetch, all
+selection client-side. Add a page by creating `pages/<name>/<name>.ts`, a route in
+`app.routes.ts`, and a `MenuItem` in `app.ts`.
 
 **Build integration & serving (single jar):** `build.gradle` uses the `com.github.node-gradle.node`
 plugin (it downloads a pinned **Node 26.4.0** for reproducibility). `frontendBuild` runs the npm

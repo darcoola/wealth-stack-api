@@ -12,18 +12,19 @@ interface BankingOperationRepository : JpaRepository<BankingOperation, Long> {
     fun findAllByCategory(category: Category): List<BankingOperation>
 
     /**
-     * Aggregates every operation into (month, category) buckets, splitting credits and debits so the
-     * caller can derive net / spendings / income. `LEFT JOIN` keeps Uncategorized rows (null category).
+     * Aggregates every operation into (month, category) buckets, summing amounts as-is (no
+     * debit/credit split): spending categories total negative, income categories positive. Carries
+     * the category [CategoryMonthSum.categoryType] so callers/charts split by type instead of amount
+     * sign. `LEFT JOIN` keeps Uncategorized rows (null category/type).
      * `to_char(date, 'YYYY-MM')` is portable across Postgres and H2.
      */
     @Query(
         """
         SELECT function('to_char', o.date, 'YYYY-MM') AS month,
-               c.id AS categoryId, c.name AS categoryName,
-               COALESCE(SUM(CASE WHEN o.amount >= 0 THEN o.amount ELSE 0 END), 0) AS creditSum,
-               COALESCE(SUM(CASE WHEN o.amount <  0 THEN o.amount ELSE 0 END), 0) AS debitSum
+               c.id AS categoryId, c.name AS categoryName, c.type AS categoryType,
+               COALESCE(SUM(o.amount), 0) AS total
         FROM BankingOperation o LEFT JOIN o.category c
-        GROUP BY function('to_char', o.date, 'YYYY-MM'), c.id, c.name
+        GROUP BY function('to_char', o.date, 'YYYY-MM'), c.id, c.name, c.type
         """
     )
     fun aggregateByMonthAndCategory(): List<CategoryMonthSum>
@@ -31,9 +32,9 @@ interface BankingOperationRepository : JpaRepository<BankingOperation, Long> {
 
 /** Projection for [BankingOperationRepository.aggregateByMonthAndCategory]. */
 interface CategoryMonthSum {
-    val month: String          // "YYYY-MM"
-    val categoryId: Long?       // null = Uncategorized
-    val categoryName: String?   // null = Uncategorized
-    val creditSum: BigDecimal   // SUM of amount >= 0
-    val debitSum: BigDecimal    // SUM of amount < 0 (negative)
+    val month: String                // "YYYY-MM"
+    val categoryId: Long?            // null = Uncategorized
+    val categoryName: String?        // null = Uncategorized
+    val categoryType: CategoryType?  // null = Uncategorized
+    val total: BigDecimal            // SUM of amount, as-is (signed)
 }

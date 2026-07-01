@@ -14,15 +14,19 @@ open class CategoryService(
 ) {
 
     @Transactional
-    open fun create(name: String): Category {
+    open fun create(name: String, type: CategoryType = CategoryType.SPENDING): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
         require(categoryRepository.findByName(trimmed) == null) { "Category '$trimmed' already exists" }
-        return categoryRepository.save(Category(trimmed))
+        return categoryRepository.save(Category(trimmed, type))
     }
 
     @Transactional
-    open fun rename(id: Long, name: String): Category {
+    open fun rename(id: Long, name: String): Category = update(id, name, null)
+
+    /** Updates the name and, when [type] is given, the spending/income type of a category. */
+    @Transactional
+    open fun update(id: Long, name: String, type: CategoryType?): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
         val category = categoryRepository.findById(id)
@@ -30,6 +34,7 @@ open class CategoryService(
         val clash = categoryRepository.findByName(trimmed)
         require(clash == null || clash.id == id) { "Category '$trimmed' already exists" }
         category.name = trimmed
+        type?.let { category.type = it }
         return categoryRepository.save(category)
     }
 

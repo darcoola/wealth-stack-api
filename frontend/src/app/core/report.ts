@@ -1,5 +1,4 @@
-/** How signed amounts are collapsed for the charts. Mirrors the backend `AmountMode`. */
-export type AmountMode = 'all' | 'spendings' | 'income';
+import { CategoryType } from './category';
 
 /** A (month, category) aggregate, mirroring the backend `MonthlyCategoryTotalDto`. */
 export interface MonthlyCategoryTotal {
@@ -9,6 +8,8 @@ export interface MonthlyCategoryTotal {
   categoryId: number | null;
   /** Category name, or `null` when Uncategorized. */
   category: string | null;
-  /** Total for the bucket, already adjusted for the requested mode. */
+  /** Category type, or `null` when Uncategorized. */
+  categoryType: CategoryType | null;
+  /** Sum of amounts in the bucket, as-is (spending negative, income positive). */
   total: number;
 }

@@ -7,6 +7,7 @@ import assertk.assertions.isNull
 import com.wealthStack.bankstatement.BankingOperationRepository
 import com.wealthStack.bankstatement.CategoryRepository
 import com.wealthStack.bankstatement.CategoryService
+import com.wealthStack.bankstatement.CategoryType
 import com.wealthStack.bankstatement.ManualOperation
 import com.wealthStack.bankstatement.ManualOperationsRequest
 import com.wealthStack.bankstatement.StatementImporter
@@ -43,8 +44,8 @@ class ReportFinderTest {
     fun seed() {
         operationRepository.deleteAll()
         categoryRepository.deleteAll()
-        categoryService.create("Salary")
-        categoryService.create("Groceries")
+        categoryService.create("Salary", CategoryType.INCOME)
+        categoryService.create("Groceries", CategoryType.SPENDING)
         importer.importOperations(
             ManualOperationsRequest(
                 bankName = "legacy",
@@ -77,36 +78,30 @@ class ReportFinderTest {
     private fun value(amount: String) = BigDecimal(amount).stripTrailingZeros()
 
     @Test
-    fun `all mode returns the net signed sum per bucket`() {
-        val rows = reportFinder.categoryMonthlyTotals(AmountMode.ALL)
+    fun `totals are the raw signed sum per bucket, not split by debit or credit`() {
+        val rows = reportFinder.categoryMonthlyTotals()
 
+        // Income category sums positive, spending categories sum negative — both taken as-is.
         assertThat(total(rows, "2024-01", "Salary")).isEqualTo(value("5000"))
         assertThat(total(rows, "2024-01", "Groceries")).isEqualTo(value("-200"))
         assertThat(total(rows, "2024-02", "Groceries")).isEqualTo(value("-100"))
     }
 
     @Test
-    fun `spendings mode returns positive debit magnitudes and ignores income`() {
-        val rows = reportFinder.categoryMonthlyTotals(AmountMode.SPENDINGS)
+    fun `each bucket carries its category type so the frontend can split by type`() {
+        val rows = reportFinder.categoryMonthlyTotals()
 
-        assertThat(total(rows, "2024-01", "Groceries")).isEqualTo(value("200"))
-        assertThat(total(rows, "2024-01", "Salary")).isEqualTo(value("0"))
+        assertThat(bucket(rows, "2024-01", "Salary").categoryType).isEqualTo(CategoryType.INCOME)
+        assertThat(bucket(rows, "2024-01", "Groceries").categoryType).isEqualTo(CategoryType.SPENDING)
     }
 
     @Test
-    fun `income mode returns credits only`() {
-        val rows = reportFinder.categoryMonthlyTotals(AmountMode.INCOME)
-
-        assertThat(total(rows, "2024-01", "Salary")).isEqualTo(value("5000"))
-        assertThat(total(rows, "2024-01", "Groceries")).isEqualTo(value("0"))
-    }
-
-    @Test
-    fun `uncategorized rows land in a null-category bucket`() {
-        val rows = reportFinder.categoryMonthlyTotals(AmountMode.ALL)
+    fun `uncategorized rows land in a null-category, null-type bucket`() {
+        val rows = reportFinder.categoryMonthlyTotals()
 
         val uncategorized = bucket(rows, "2024-01", null)
         assertThat(uncategorized.categoryId).isNull()
+        assertThat(uncategorized.categoryType).isNull()
         assertThat(uncategorized.total.stripTrailingZeros()).isEqualTo(value("-50"))
 
         assertThat(bucket(rows, "2024-01", "Salary").categoryId).isNotNull()

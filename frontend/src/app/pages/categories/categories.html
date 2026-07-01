@@ -16,6 +16,13 @@
     [ngModel]="newName()"
     (ngModelChange)="newName.set($event)"
     (keyup.enter)="add()" />
+  <p-select
+    [options]="typeOptions"
+    optionLabel="label"
+    optionValue="value"
+    [ngModel]="newType()"
+    (onChange)="newType.set($event.value)"
+    appendTo="body" />
   <p-button label="Add" icon="pi pi-plus" (onClick)="add()" [disabled]="!newName().trim()" />
 </div>
 
@@ -29,6 +36,7 @@
   <ng-template pTemplate="header">
     <tr>
       <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+      <th pSortableColumn="type" style="width: 12rem">Type <p-sortIcon field="type" /></th>
       <th style="width: 6rem"></th>
     </tr>
   </ng-template>
@@ -51,6 +59,15 @@
           </ng-template>
         </p-cellEditor>
       </td>
+      <td>
+        <p-select
+          [options]="typeOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="category.type"
+          (onChange)="changeType(category, $event.value)"
+          appendTo="body" />
+      </td>
       <td class="text-right">
         <p-button
           icon="pi pi-trash"
@@ -64,7 +81,7 @@
 
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td colspan="2" class="empty-cell">
+      <td colspan="3" class="empty-cell">
         @if (!loading()) {
           No categories yet. Add one above to get started.
         }
