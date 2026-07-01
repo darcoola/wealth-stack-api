@@ -78,6 +78,13 @@ class ManualCsvParserTest {
     }
 
     @Test
+    fun `optional additionalInfo is captured and defaults to null when blank`() {
+        val operations = parser.parse(loadTestCsv(), "test.csv")
+        assertThat(operations[0].additionalInfo).isNull()
+        assertThat(operations[1].additionalInfo).isEqualTo("weekly shop at Lidl")
+    }
+
+    @Test
     fun `captures the category name for the importer to resolve`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
         assertThat(operations[0].categoryName).isEqualTo("income")

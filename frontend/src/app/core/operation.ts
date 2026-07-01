@@ -11,6 +11,8 @@ export interface Operation {
   accountDisplayName: string;
   /** Signed amount; negative = debit, non-negative = credit. */
   amount: number;
+  /** Free-text note supplied on import when the description alone isn't enough; `null` when absent. */
+  additionalInfo: string | null;
   /** Assigned category dictionary id, or `null` when Uncategorized. */
   categoryId: number | null;
   /** Assigned category name, or `null` when Uncategorized. */

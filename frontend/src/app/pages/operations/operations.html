@@ -18,7 +18,7 @@
   [paginator]="true"
   [rows]="20"
   [rowsPerPageOptions]="[10, 20, 50, 100]"
-  [globalFilterFields]="['description', 'accountDisplayName', 'account', 'category']"
+  [globalFilterFields]="['description', 'additionalInfo', 'accountDisplayName', 'account', 'category']"
   sortField="date"
   [sortOrder]="-1"
   styleClass="p-datatable-sm"
@@ -76,6 +76,7 @@
       <th style="width: 3rem"><p-tableHeaderCheckbox /></th>
       <th pSortableColumn="date" style="width: 9rem">Date <p-sortIcon field="date" /></th>
       <th pSortableColumn="description">Description <p-sortIcon field="description" /></th>
+      <th pSortableColumn="additionalInfo">Info <p-sortIcon field="additionalInfo" /></th>
       <th pSortableColumn="accountDisplayName" style="width: 13rem">Account <p-sortIcon field="accountDisplayName" /></th>
       <th pSortableColumn="category" style="width: 12rem">Category <p-sortIcon field="category" /></th>
       <th style="width: 7rem">Type</th>
@@ -88,6 +89,7 @@
       <td><p-tableCheckbox [value]="op" /></td>
       <td class="date-cell">{{ op.date | date: 'yyyy-MM-dd' }}</td>
       <td class="description-cell" [title]="op.description">{{ op.description }}</td>
+      <td class="info-cell" [title]="op.additionalInfo">{{ op.additionalInfo }}</td>
       <td>{{ op.accountDisplayName }}</td>
       <td>
         <p-select
@@ -117,7 +119,7 @@
 
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td colspan="7" class="empty-cell">
+      <td colspan="8" class="empty-cell">
         @if (!loading()) {
           No operations yet. Import a statement to get started.
         }

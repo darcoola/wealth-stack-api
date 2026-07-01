@@ -36,6 +36,15 @@ class BankingOperation(
     var accountDisplayName: String? = null,
 
     /**
+     * Free-text supplementary note the user can supply on a manual import (CSV `additionalInfo`
+     * column / JSON `additionalInfo` field) when [description] alone — often just a shop name like
+     * "Allegro" — isn't enough to deduce a category. Never set by raw bank parsers; not part of the
+     * operation fingerprint (see [OperationFingerprint]).
+     */
+    @Column(length = 1000)
+    var additionalInfo: String? = null,
+
+    /**
      * Classification from the editable [Category] dictionary, or `null` (Uncategorized). Set by the
      * user via the UI, or by a *manual* import that names a dictionary category (raw bank parsers
      * never set it). Deliberately excluded from the operation fingerprint (see [OperationFingerprint])

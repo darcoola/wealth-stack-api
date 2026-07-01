@@ -32,6 +32,14 @@
   white-space: nowrap;
 }
 
+.info-cell {
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--p-text-muted-color);
+}
+
 .amount {
   font-variant-numeric: tabular-nums;
 }

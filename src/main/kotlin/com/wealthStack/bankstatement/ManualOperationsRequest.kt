@@ -20,6 +20,8 @@ data class ManualOperation(
     val amount: BigDecimal,
     val account: String,
     val accountDisplayName: String? = null,
+    /** Optional free-text note when the description alone isn't enough to deduce a category. */
+    val additionalInfo: String? = null,
     /** Optional dictionary category name; must already exist or the import is rejected. */
     val category: String? = null
 )

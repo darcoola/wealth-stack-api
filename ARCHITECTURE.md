@@ -48,7 +48,9 @@ Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
   amount sign), `bankName`, `account` (raw account/card identifier), `accountDisplayName?` (the
   mapped account's display name, resolved from mappings), `category?` (`@ManyToOne` FK to `Category`, nullable = Uncategorized; set by the
   user in the UI, or by a **manual** import that names a dictionary category — raw bank parsers
-  never set it), `sourceFileName?` (provenance; nullable — absent for
+  never set it), `additionalInfo?` (free-text note a manual import may supply when the description
+  alone — often just a shop name — isn't enough to deduce a category; raw bank parsers never set it;
+  excluded from the fingerprint), `sourceFileName?` (provenance; nullable — absent for
   manual/JSON rows with no source), `fingerprint` + `occurrence` (duplicate-detection identity —
   see below). Unique constraint on `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
@@ -71,7 +73,8 @@ Schema is managed by **Flyway**, not Hibernate. Migrations live in
 added the `categories` table and replaced `banking_operations.category` (a string) with a nullable
 `category_id` FK (old values discarded — operations start Uncategorized). `V5` added report indices
 on `banking_operations (date)` and `(category_id)`. `V6` added `categories.type`
-(spending/income; existing rows backfilled `SPENDING`).
+(spending/income; existing rows backfilled `SPENDING`). `V7` added the nullable
+`banking_operations.additional_info` free-text note.
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -110,7 +113,7 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 ### Manual / JSON ingest (command side)
 `BankStatementController` `POST /api/v1/bank-statements/operations` (JSON `ManualOperationsRequest`:
 `bankName`, optional `source`, list of `operations` with `date`/`description`/`amount`/`account` and
-optional `accountDisplayName`/`category`). For already-prepared rows — historical data or banks without a
+optional `accountDisplayName`/`additionalInfo`/`category`). For already-prepared rows — historical data or banks without a
 parser. `StatementImporter.importOperations` builds entities (deriving `type` from amount sign,
 `sourceFileName` from `source`) and runs them through the **same** mapping → category-resolve →
 fingerprint → duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends
@@ -153,7 +156,7 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ### Read side (query package)
 - `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`
-  (now includes `id`, `categoryId`, and the category `name`).
+  (includes `id`, `additionalInfo`, `categoryId`, and the category `name`).
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
   (id + rawAccount + displayName), sorted by display name.
 - `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name + type).
@@ -180,7 +183,7 @@ Factory keys parsers by lowercase `bankName`.
 - **`ManualCsvParser`** (`bankName="manual"`, UTF-8): WealthStack's **own predefined schema** for
   already-prepared rows (historical data / unparsed banks) — not a bank export. Header row names
   the columns (case-insensitive, order-independent): required `date,bankName,account,description,
-  amount`, optional `accountDisplayName,category`. Quote-aware, dot-decimal amounts, `type` from amount
+  amount`, optional `accountDisplayName,additionalInfo,category`. Quote-aware, dot-decimal amounts, `type` from amount
   sign. A non-blank `category` must name an existing dictionary entry (resolved at import; unknown
   name → 400); blank/absent leaves the row Uncategorized. Each row carries its own `bankName`, so one
   file may mix banks; the upload `bankName=manual` only selects the parser. JSON equivalent:

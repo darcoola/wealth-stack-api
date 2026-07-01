@@ -115,6 +115,7 @@ open class StatementImporter(
      */
     private fun BankingOperation.overwriteWith(incoming: BankingOperation) {
         accountDisplayName = incoming.accountDisplayName
+        additionalInfo = incoming.additionalInfo
         sourceFileName = incoming.sourceFileName
         incoming.category?.let { category = it }
     }
@@ -128,6 +129,7 @@ open class StatementImporter(
         bankName = bankName,
         account = account,
         accountDisplayName = accountDisplayName,
+        additionalInfo = additionalInfo,
         sourceFileName = sourceFileName
     ).apply { categoryName = this@toEntity.category }
 }

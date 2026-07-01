@@ -11,6 +11,7 @@ data class OperationDto(
     val account: String,
     val accountDisplayName: String,
     val amount: BigDecimal,
+    val additionalInfo: String?,
     val categoryId: Long?,
     val category: String?
 )
