@@ -19,6 +19,13 @@ class OperationCommandController(
     fun assignCategory(@PathVariable id: Long, @RequestBody request: AssignCategoryRequest): OperationDto =
         service.assignToOperation(id, request.categoryId).toDto()
 
+    @PutMapping("/{id}/additional-info")
+    fun updateAdditionalInfo(
+        @PathVariable id: Long,
+        @RequestBody request: UpdateAdditionalInfoRequest,
+    ): OperationDto =
+        operationService.updateAdditionalInfo(id, request.additionalInfo).toDto()
+
     @PutMapping("/category")
     fun assignCategoryBulk(@RequestBody request: BulkAssignCategoryRequest): List<OperationDto> =
         service.assignToOperations(request.operationIds, request.categoryId).map { it.toDto() }
@@ -29,6 +36,8 @@ class OperationCommandController(
 }
 
 data class AssignCategoryRequest(val categoryId: Long?)
+
+data class UpdateAdditionalInfoRequest(val additionalInfo: String?)
 
 data class BulkAssignCategoryRequest(val operationIds: List<Long>, val categoryId: Long?)
 

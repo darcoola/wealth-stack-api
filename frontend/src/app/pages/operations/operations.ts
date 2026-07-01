@@ -87,6 +87,23 @@ export class Operations {
     });
   }
 
+  /**
+   * Persist an edit to the free-text note and reflect it on the row. Skips the request when the
+   * value is unchanged (e.g. the user opened the editor and tabbed out without typing). A blank
+   * value clears the note. Works for any row, including bank-imported ones that started without one.
+   */
+  protected updateInfo(op: Operation, value: string): void {
+    const next = value.trim() === '' ? null : value.trim();
+    if (next === op.additionalInfo) return;
+    this.service.updateAdditionalInfo(op.id, next).subscribe({
+      next: (updated) => {
+        this.operations.update((ops) =>
+          ops.map((o) => (o.id === op.id ? { ...o, additionalInfo: updated.additionalInfo } : o)),
+        );
+      },
+    });
+  }
+
   /** Assign the toolbar category to every selected row, then clear the selection. */
   protected assignSelected(): void {
     const ids = this.selected().map((o) => o.id);

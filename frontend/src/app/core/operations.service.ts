@@ -20,6 +20,13 @@ export class OperationsService {
     });
   }
 
+  /** Sets (or clears, when blank/null) the free-text note on a single operation. */
+  updateAdditionalInfo(operationId: number, additionalInfo: string | null): Observable<Operation> {
+    return this.http.put<Operation>(`${this.baseUrl}/operations/${operationId}/additional-info`, {
+      additionalInfo,
+    });
+  }
+
   /** Assigns a category to many operations at once, or clears it when `categoryId` is null. */
   assignCategoryBulk(operationIds: number[], categoryId: number | null): Observable<Operation[]> {
     return this.http.put<Operation[]>(`${this.baseUrl}/operations/category`, {

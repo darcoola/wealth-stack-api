@@ -149,6 +149,9 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   Names are unique.
 - `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/category`
   (`{ "categoryId": Long? }`) → `CategoryService.assignToOperation` — assign or, with `null`, clear.
+- `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/additional-info`
+  (`{ "additionalInfo": String? }`) → `OperationCommandService.updateAdditionalInfo` — sets the
+  free-text note on any operation (blank/null clears it; trimmed); works on bank-imported rows too.
 - `OperationCommandController` bulk actions: `PUT /api/v1/bank-statements/operations/category`
   (`{ "operationIds": [Long], "categoryId": Long? }`) → `CategoryService.assignToOperations`
   (bulk assign/clear); `DELETE /api/v1/bank-statements/operations`
@@ -211,7 +214,8 @@ frontend/
 
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
 **Import**, **Accounts**, **Reports**. The Operations table assigns a category per row via an
-inline `p-select` (`PUT .../operations/{id}/category`); the Categories page is the dictionary CRUD
+inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text **Info** note per row
+via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the Categories page is the dictionary CRUD
 (`core/categories.service.ts`) — each row's spending/income `type` is editable via an inline
 `p-select`, and the add-row sets the new category's type. The **Reports** page (`pages/reports/`,
 `core/reports.service.ts`) has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`,

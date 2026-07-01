@@ -38,6 +38,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--p-text-muted-color);
+  cursor: text;
+}
+
+.info-input {
+  width: 100%;
+}
+
+.info-placeholder {
+  color: var(--p-text-muted-color);
+  opacity: 0.6;
+  font-style: italic;
 }
 
 .amount {

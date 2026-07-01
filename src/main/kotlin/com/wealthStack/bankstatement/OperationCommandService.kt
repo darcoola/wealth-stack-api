@@ -15,4 +15,16 @@ open class OperationCommandService(
     open fun deleteAll(operationIds: List<Long>) {
         bankingOperationRepository.deleteAllById(operationIds)
     }
+
+    /**
+     * Sets (or clears, with a blank value) the free-text [BankingOperation.additionalInfo] note on a
+     * single operation — the user can annotate any row, including bank-imported ones that carry none.
+     */
+    @Transactional
+    open fun updateAdditionalInfo(operationId: Long, additionalInfo: String?): BankingOperation {
+        val operation = bankingOperationRepository.findById(operationId)
+            .orElseThrow { IllegalArgumentException("Operation $operationId not found") }
+        operation.additionalInfo = additionalInfo?.trim()?.takeIf { it.isNotEmpty() }
+        return bankingOperationRepository.save(operation)
+    }
 }

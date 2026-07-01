@@ -89,7 +89,28 @@
       <td><p-tableCheckbox [value]="op" /></td>
       <td class="date-cell">{{ op.date | date: 'yyyy-MM-dd' }}</td>
       <td class="description-cell" [title]="op.description">{{ op.description }}</td>
-      <td class="info-cell" [title]="op.additionalInfo">{{ op.additionalInfo }}</td>
+      <td pEditableColumn class="info-cell" [title]="op.additionalInfo">
+        <p-cellEditor>
+          <ng-template pTemplate="input">
+            <input
+              pInputText
+              type="text"
+              [value]="op.additionalInfo ?? ''"
+              (blur)="updateInfo(op, $any($event.target).value)"
+              (keydown.enter)="$any($event.target).blur()"
+              (keydown.escape)="$any($event.target).blur()"
+              placeholder="Add note…"
+              class="info-input" />
+          </ng-template>
+          <ng-template pTemplate="output">
+            @if (op.additionalInfo) {
+              {{ op.additionalInfo }}
+            } @else {
+              <span class="info-placeholder">Add note…</span>
+            }
+          </ng-template>
+        </p-cellEditor>
+      </td>
       <td>{{ op.accountDisplayName }}</td>
       <td>
         <p-select
