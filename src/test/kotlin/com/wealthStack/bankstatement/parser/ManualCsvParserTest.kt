@@ -41,6 +41,21 @@ class ManualCsvParserTest {
     }
 
     @Test
+    fun `parses European amounts with comma decimal and space thousands separators`() {
+        val header = "date,bankName,account,description,amount"
+        val operations = parser.parse(
+            "$header\n" +
+                "2025-01-02,manual,Millenium ROR,Składka,\"-4,98\"\n" +
+                "2025-01-03,manual,Millenium ROR,Przelew,\"-101 933,26\"\n" +
+                "2025-01-04,manual,Millenium ROR,Wynagrodzenie,\"9 942,61\"",
+            "test.csv"
+        )
+        assertThat(operations[0].amount).isEqualTo(BigDecimal("-4.98"))
+        assertThat(operations[1].amount).isEqualTo(BigDecimal("-101933.26"))
+        assertThat(operations[2].amount).isEqualTo(BigDecimal("9942.61"))
+    }
+
+    @Test
     fun `optional accountDisplayName defaults when blank`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
         assertThat(operations[0].accountDisplayName).isEqualTo("Old Employer")

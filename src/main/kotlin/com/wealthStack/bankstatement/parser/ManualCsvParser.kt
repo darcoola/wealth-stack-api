@@ -21,7 +21,8 @@ import java.time.LocalDate
  * ```
  *
  * Required columns: `date` (ISO yyyy-MM-dd), `bankName`, `account`, `description`, `amount`
- * (dot decimal, optional minus). Optional: `accountDisplayName`, `category`. `type` is derived from the
+ * (dot or comma decimal, optional minus, optional space/NBSP thousands separators — e.g. `5000.00`
+ * or `"-101 933,26"`). Optional: `accountDisplayName`, `category`. `type` is derived from the
  * amount sign. A non-blank `category` must name an existing dictionary entry (resolved at import
  * by [com.wealthStack.bankstatement.StatementImporter]; an unknown name fails the import); blank
  * or absent leaves the row Uncategorized.
@@ -99,7 +100,14 @@ class ManualCsvParser : StatementParser {
         return fields
     }
 
-    private fun parseAmount(raw: String): BigDecimal = BigDecimal(raw.replace(" ", ""))
+    /**
+     * Accepts both the canonical dot-decimal form (`5000.00`) and the European form produced by
+     * Polish-locale spreadsheets — comma decimal with space or non-breaking-space thousands
+     * separators (`"-101 933,26"`). Spaces (regular and NBSP) are stripped as grouping separators
+     * and a decimal comma is normalized to a dot.
+     */
+    private fun parseAmount(raw: String): BigDecimal =
+        BigDecimal(raw.replace("\u00A0", "").replace(" ", "").replace(",", "."))
 
     private companion object {
         val REQUIRED_COLUMNS = listOf("date", "bankname", "account", "description", "amount")
