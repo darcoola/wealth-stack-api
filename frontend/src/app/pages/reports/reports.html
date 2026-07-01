@@ -41,27 +41,22 @@
       }
 
       @if (selectedMonths().length) {
-        <section class="chart-section">
-          <h2 class="chart-title">Spending</h2>
-          @if (spendingCategories().length) {
-            <div class="chart-wrap">
-              <p-chart type="bar" [data]="spendingMonthlyData()" [options]="barOptions()" />
-            </div>
-          } @else {
-            <p class="empty-hint">No spending categories yet.</p>
-          }
-        </section>
-
-        <section class="chart-section">
-          <h2 class="chart-title">Income</h2>
-          @if (incomeCategories().length) {
-            <div class="chart-wrap">
-              <p-chart type="bar" [data]="incomeMonthlyData()" [options]="barOptions()" />
-            </div>
-          } @else {
-            <p class="empty-hint">No income categories yet.</p>
-          }
-        </section>
+        @for (section of monthlySections(); track section.type) {
+          <section class="chart-section">
+            <h2 class="chart-title">{{ section.title }}</h2>
+            @if (section.hasData) {
+              <div class="chart-wrap">
+                <p-chart
+                  type="bar"
+                  [data]="section.data"
+                  [options]="barOptions()"
+                  [plugins]="plugins" />
+              </div>
+            } @else {
+              <p class="empty-hint">No {{ section.title.toLowerCase() }} categories yet.</p>
+            }
+          </section>
+        }
       } @else {
         <p-card>
           <p class="empty-hint">Pick one or more months above to compare categories.</p>
@@ -82,27 +77,22 @@
       </div>
 
       @if (selectedYear() != null) {
-        <section class="chart-section">
-          <h2 class="chart-title">Spending</h2>
-          @if (spendingCategories().length) {
-            <div class="chart-wrap">
-              <p-chart type="line" [data]="spendingYearlyData()" [options]="lineOptions()" />
-            </div>
-          } @else {
-            <p class="empty-hint">No spending categories yet.</p>
-          }
-        </section>
-
-        <section class="chart-section">
-          <h2 class="chart-title">Income</h2>
-          @if (incomeCategories().length) {
-            <div class="chart-wrap">
-              <p-chart type="line" [data]="incomeYearlyData()" [options]="lineOptions()" />
-            </div>
-          } @else {
-            <p class="empty-hint">No income categories yet.</p>
-          }
-        </section>
+        @for (section of yearlySections(); track section.type) {
+          <section class="chart-section">
+            <h2 class="chart-title">{{ section.title }}</h2>
+            @if (section.hasData) {
+              <div class="chart-wrap">
+                <p-chart
+                  type="line"
+                  [data]="section.data"
+                  [options]="lineOptions()"
+                  [plugins]="plugins" />
+              </div>
+            } @else {
+              <p class="empty-hint">No {{ section.title.toLowerCase() }} categories yet.</p>
+            }
+          </section>
+        }
       } @else {
         <p-card>
           <p class="empty-hint">No data yet. Import a statement to see yearly trends.</p>

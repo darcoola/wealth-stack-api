@@ -21,12 +21,28 @@ const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+/** One chart per category type, in display order. Uncategorized rows fold into Others. */
+const TYPE_ORDER: CategoryType[] = ['SPENDING', 'INCOME', 'OTHERS'];
+const TYPE_LABEL: Record<CategoryType, string> = {
+  SPENDING: 'Spending',
+  INCOME: 'Income',
+  OTHERS: 'Others',
+};
+
 /** Stable key for a category bucket (real id, or a sentinel for the Uncategorized bucket). */
 type CategoryKey = number | 'uncategorized';
 
 interface CategoryBucket {
   key: CategoryKey;
   label: string;
+}
+
+/** A titled chart for one category type; `hasData` is false when the type has no categories. */
+interface ChartSection {
+  type: CategoryType;
+  title: string;
+  hasData: boolean;
+  data: unknown;
 }
 
 @Component({
@@ -50,6 +66,9 @@ export class Reports {
   protected readonly rows = signal<MonthlyCategoryTotal[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+
+  /** Draws each bar/point's value on the canvas (see [valueLabelsPlugin]). */
+  protected readonly plugins = [valueLabelsPlugin];
 
   // ----- Monthly tab: a set of picked months compared side-by-side as grouped bars. -----
   protected readonly selectedMonthDates = signal<Date[]>([previousMonth()]);
@@ -81,9 +100,9 @@ export class Reports {
 
   private readonly monthsWithData = computed(() => new Set(this.rows().map((r) => r.month)));
 
-  /** Which chart a row belongs to: its category type, with Uncategorized folded into Spending. */
+  /** Which chart a row belongs to: its category type, with Uncategorized folded into Others. */
   private group(row: MonthlyCategoryTotal): CategoryType {
-    return row.categoryType ?? 'SPENDING';
+    return row.categoryType ?? 'OTHERS';
   }
 
   private keyOf(row: MonthlyCategoryTotal): CategoryKey {
@@ -104,9 +123,6 @@ export class Reports {
       return a.label.localeCompare(b.label);
     });
   }
-
-  protected readonly spendingCategories = computed(() => this.categoriesForType('SPENDING'));
-  protected readonly incomeCategories = computed(() => this.categoriesForType('INCOME'));
 
   protected readonly availableYears = computed(() =>
     [...new Set(this.rows().map((r) => Number(r.month.slice(0, 4))))].sort((a, b) => b - a),
@@ -130,6 +146,14 @@ export class Reports {
     }
   }
 
+  /** Builds one [ChartSection] per category type, in display order. */
+  private sections(build: (categories: CategoryBucket[]) => unknown): ChartSection[] {
+    return TYPE_ORDER.map((type) => {
+      const categories = this.categoriesForType(type);
+      return { type, title: TYPE_LABEL[type], hasData: categories.length > 0, data: build(categories) };
+    });
+  }
+
   // ---- Monthly tab ----
 
   /** Picked months as `YYYY-MM`, ascending. */
@@ -144,11 +168,8 @@ export class Reports {
     this.selectedMonths().filter((m) => !this.monthsWithData().has(m)),
   );
 
-  protected readonly spendingMonthlyData = computed(() =>
-    this.monthlyChartData(this.spendingCategories()),
-  );
-  protected readonly incomeMonthlyData = computed(() =>
-    this.monthlyChartData(this.incomeCategories()),
+  protected readonly monthlySections = computed(() =>
+    this.sections((categories) => this.monthlyChartData(categories)),
   );
 
   /** Grouped bars: categories on the X-axis, one bar (dataset) per selected month. */
@@ -172,11 +193,8 @@ export class Reports {
 
   // ---- Yearly tab ----
 
-  protected readonly spendingYearlyData = computed(() =>
-    this.yearlyChartData(this.spendingCategories()),
-  );
-  protected readonly incomeYearlyData = computed(() =>
-    this.yearlyChartData(this.incomeCategories()),
+  protected readonly yearlySections = computed(() =>
+    this.sections((categories) => this.yearlyChartData(categories)),
   );
 
   /** One line per category across the selected year's 12 months. */
@@ -248,3 +266,37 @@ function cssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
 }
+
+const VALUE_FORMAT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+
+/**
+ * Inline chart.js plugin that prints each datapoint's value next to its bar/point. Positive values
+ * sit above the element, negatives below; zeros are skipped to cut clutter. Passed per-chart via the
+ * PrimeNG `[plugins]` input so no global chart.js registration (or extra dependency) is needed.
+ */
+const valueLabelsPlugin = {
+  id: 'valueLabels',
+  afterDatasetsDraw(chart: {
+    ctx: CanvasRenderingContext2D;
+    data: { datasets: { data: (number | null)[] }[] };
+    getDatasetMeta(i: number): { hidden?: boolean; data: { tooltipPosition(): { x: number; y: number } }[] };
+  }) {
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = '600 11px sans-serif';
+    ctx.fillStyle = cssVar('--p-text-color', '#334155');
+    ctx.textAlign = 'center';
+    chart.data.datasets.forEach((dataset, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      meta.data.forEach((element, index) => {
+        const value = dataset.data[index];
+        if (value == null || value === 0) return;
+        const { x, y } = element.tooltipPosition();
+        ctx.textBaseline = value >= 0 ? 'bottom' : 'top';
+        ctx.fillText(VALUE_FORMAT.format(value), x, value >= 0 ? y - 2 : y + 2);
+      });
+    });
+    ctx.restore();
+  },
+};

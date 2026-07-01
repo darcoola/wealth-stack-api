@@ -54,7 +54,7 @@ Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
   Editing a mapping back-fills `accountDisplayName` on all existing operations with that account.
 - **`Category`** (`categories`) — an editable dictionary entry with a unique `name` and a `type`
-  (`CategoryType`: `SPENDING` | `INCOME`, string-enum column, default `SPENDING`). The type drives
+  (`CategoryType`: `SPENDING` | `INCOME` | `OTHERS`, string-enum column, default `SPENDING`). The type drives
   reporting: totals are summed as-is (no debit/credit split) and charts split by type, not amount
   sign. Fully user-curated (create / rename / retype / delete) via `CategoryService`; operations point at one by FK.
   Deleting a category in use first un-assigns it from its operations (FK → null). Shaped to later
@@ -212,12 +212,13 @@ inline `p-select` (`PUT .../operations/{id}/category`); the Categories page is t
 (`core/categories.service.ts`) — each row's spending/income `type` is editable via an inline
 `p-select`, and the add-row sets the new category's type. The **Reports** page (`pages/reports/`,
 `core/reports.service.ts`) has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`,
-needs the `chart.js` peer dep); each tab renders **two** charts, one Spending and one Income (rows
-split client-side by `categoryType`, Uncategorized folded into Spending): Monthly = grouped bar
-(categories on X, one bar per picked month), Yearly = line (12 months of a chosen year, one line
-per category). Totals are shown as-is (spending negative, income positive); one fetch, all
-selection client-side. Add a page by creating `pages/<name>/<name>.ts`, a route in
-`app.routes.ts`, and a `MenuItem` in `app.ts`.
+needs the `chart.js` peer dep); each tab renders one chart **per category type** (Spending, Income,
+Others — rows split client-side by `categoryType`, Uncategorized folded into Others): Monthly =
+grouped bar (categories on X, one bar per picked month), Yearly = line (12 months of a chosen year,
+one line per category). Totals are shown as-is (spending negative, income positive); an inline
+chart.js plugin (`valueLabelsPlugin`, passed via the PrimeNG `[plugins]` input) prints each
+bar/point's value. One fetch, all selection client-side. Add a page by creating
+`pages/<name>/<name>.ts`, a route in `app.routes.ts`, and a `MenuItem` in `app.ts`.
 
 **Build integration & serving (single jar):** `build.gradle` uses the `com.github.node-gradle.node`
 plugin (it downloads a pinned **Node 26.4.0** for reproducibility). `frontendBuild` runs the npm

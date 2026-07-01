@@ -25,6 +25,7 @@ export class Categories {
   protected readonly typeOptions: { label: string; value: CategoryType }[] = [
     { label: 'Spending', value: 'SPENDING' },
     { label: 'Income', value: 'INCOME' },
+    { label: 'Others', value: 'OTHERS' },
   ];
 
   constructor() {

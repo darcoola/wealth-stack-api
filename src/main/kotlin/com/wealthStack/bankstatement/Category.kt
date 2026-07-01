@@ -2,10 +2,14 @@ package com.wealthStack.bankstatement
 
 import jakarta.persistence.*
 
-/** Whether a category groups money going out (spending) or money coming in (income). */
+/**
+ * How a category groups money: [SPENDING] (going out), [INCOME] (coming in), or [OTHERS] for
+ * anything that is neither (transfers, investments, corrections, …).
+ */
 enum class CategoryType {
     SPENDING,
-    INCOME
+    INCOME,
+    OTHERS
 }
 
 /**
