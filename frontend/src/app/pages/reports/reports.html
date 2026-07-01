@@ -79,7 +79,21 @@
       @if (selectedYear() != null) {
         @for (section of yearlySections(); track section.type) {
           <section class="chart-section">
-            <h2 class="chart-title">{{ section.title }}</h2>
+            <div class="chart-header">
+              <h2 class="chart-title">{{ section.title }}</h2>
+              @if (section.hasData) {
+                <p-multiSelect
+                  [options]="section.categories"
+                  optionLabel="label"
+                  optionValue="key"
+                  [ngModel]="yearlyKeysFor(section.type)"
+                  (ngModelChange)="setYearlyKeys(section.type, $event)"
+                  placeholder="Pick categories"
+                  [filter]="true"
+                  [showToggleAll]="true"
+                  appendTo="body" />
+              }
+            </div>
             @if (section.hasData) {
               <div class="chart-wrap">
                 <p-chart

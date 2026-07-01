@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
 import { DatePickerModule } from 'primeng/datepicker';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { TabsModule } from 'primeng/tabs';
 import { CategoryType } from '../../core/category';
@@ -42,6 +43,8 @@ interface ChartSection {
   type: CategoryType;
   title: string;
   hasData: boolean;
+  /** The type's categories, offered as options in the yearly category picker. */
+  categories: CategoryBucket[];
   data: unknown;
 }
 
@@ -54,6 +57,7 @@ interface ChartSection {
     CardModule,
     ChartModule,
     DatePickerModule,
+    MultiSelectModule,
     SelectModule,
     TabsModule,
   ],
@@ -73,8 +77,10 @@ export class Reports {
   // ----- Monthly tab: a set of picked months compared side-by-side as grouped bars. -----
   protected readonly selectedMonthDates = signal<Date[]>([previousMonth()]);
 
-  // ----- Yearly tab: a single year's 12 months as one line per category. -----
+  // ----- Yearly tab: a single year's 12 months as one line per selected category. -----
   protected readonly selectedYear = signal<number | null>(null);
+  /** Picked categories per type; defaults to just the first category of each type on load. */
+  private readonly selectedYearlyCategories = signal<Map<CategoryType, CategoryKey[]>>(new Map());
 
   constructor() {
     this.load();
@@ -140,6 +146,12 @@ export class Reports {
     this.defaultsApplied = true;
     const years = this.availableYears();
     if (years.length) this.selectedYear.set(years[0]);
+    const yearly = new Map<CategoryType, CategoryKey[]>();
+    for (const type of TYPE_ORDER) {
+      const categories = this.categoriesForType(type);
+      if (categories.length) yearly.set(type, [categories[0].key]);
+    }
+    this.selectedYearlyCategories.set(yearly);
     const months = [...this.monthsWithData()].sort();
     if (months.length) {
       this.selectedMonthDates.set([dateFromMonthKey(months[months.length - 1])]);
@@ -147,10 +159,16 @@ export class Reports {
   }
 
   /** Builds one [ChartSection] per category type, in display order. */
-  private sections(build: (categories: CategoryBucket[]) => unknown): ChartSection[] {
+  private sections(build: (type: CategoryType, categories: CategoryBucket[]) => unknown): ChartSection[] {
     return TYPE_ORDER.map((type) => {
       const categories = this.categoriesForType(type);
-      return { type, title: TYPE_LABEL[type], hasData: categories.length > 0, data: build(categories) };
+      return {
+        type,
+        title: TYPE_LABEL[type],
+        hasData: categories.length > 0,
+        categories,
+        data: build(type, categories),
+      };
     });
   }
 
@@ -169,7 +187,7 @@ export class Reports {
   );
 
   protected readonly monthlySections = computed(() =>
-    this.sections((categories) => this.monthlyChartData(categories)),
+    this.sections((_type, categories) => this.monthlyChartData(categories)),
   );
 
   /** Grouped bars: categories on the X-axis, one bar (dataset) per selected month. */
@@ -194,33 +212,74 @@ export class Reports {
   // ---- Yearly tab ----
 
   protected readonly yearlySections = computed(() =>
-    this.sections((categories) => this.yearlyChartData(categories)),
+    this.sections((type, categories) => this.yearlyChartData(type, categories)),
   );
 
-  /** One line per category across the selected year's 12 months. */
-  private yearlyChartData(categories: CategoryBucket[]) {
+  /** Selected category keys for a type (read in the template to model the picker). */
+  protected yearlyKeysFor(type: CategoryType): CategoryKey[] {
+    return this.selectedYearlyCategories().get(type) ?? [];
+  }
+
+  /** Replaces the picked categories for a type (immutably, so the computed charts recompute). */
+  protected setYearlyKeys(type: CategoryType, keys: CategoryKey[]): void {
+    const next = new Map(this.selectedYearlyCategories());
+    next.set(type, keys);
+    this.selectedYearlyCategories.set(next);
+  }
+
+  /**
+   * One line per *selected* category across the selected year's 12 months, plus a bar dataset of
+   * their monthly sum on a secondary right-hand axis.
+   */
+  private yearlyChartData(type: CategoryType, categories: CategoryBucket[]) {
     const year = this.selectedYear();
+    const selectedKeys = new Set(this.yearlyKeysFor(type));
+    const selected = categories.filter((c) => selectedKeys.has(c.key));
     const totals = new Map<string, number>();
     for (const r of this.rows()) {
       totals.set(`${r.month}::${this.keyOf(r)}`, r.total);
     }
-    return {
-      labels: MONTH_NAMES,
-      datasets: categories.map((c, i) => ({
-        label: c.label,
-        data: MONTH_NAMES.map((_, mi) => {
-          if (year == null) return 0;
-          return totals.get(`${year}-${String(mi + 1).padStart(2, '0')}::${c.key}`) ?? 0;
-        }),
-        borderColor: PALETTE[i % PALETTE.length],
-        backgroundColor: PALETTE[i % PALETTE.length],
-        tension: 0.3,
-        fill: false,
-      })),
+    const monthValue = (key: CategoryKey, mi: number) =>
+      year == null ? 0 : totals.get(`${year}-${String(mi + 1).padStart(2, '0')}::${key}`) ?? 0;
+
+    const lines = selected.map((c, i) => ({
+      type: 'line' as const,
+      label: c.label,
+      data: MONTH_NAMES.map((_, mi) => monthValue(c.key, mi)),
+      borderColor: PALETTE[i % PALETTE.length],
+      backgroundColor: PALETTE[i % PALETTE.length],
+      tension: 0.3,
+      fill: false,
+      yAxisID: 'y',
+    }));
+
+    const totalBar = {
+      type: 'bar' as const,
+      label: 'Total (selected)',
+      data: MONTH_NAMES.map((_, mi) => selected.reduce((sum, c) => sum + monthValue(c.key, mi), 0)),
+      backgroundColor: 'rgba(148, 163, 184, 0.35)',
+      borderColor: 'rgba(148, 163, 184, 0.35)',
+      yAxisID: 'y1',
+      order: 1,
     };
+
+    return { labels: MONTH_NAMES, datasets: [totalBar, ...lines] };
   }
 
-  protected readonly lineOptions = computed(() => this.chartOptions(false));
+  protected readonly lineOptions = computed(() => {
+    const options = this.chartOptions(false) as ReturnType<Reports['chartOptions']> & {
+      scales: Record<string, unknown>;
+    };
+    const text = cssVar('--p-text-color', '#334155');
+    // Secondary axis on the right for the summed "Total" bars, kept independent of the line axis.
+    options.scales['y1'] = {
+      beginAtZero: true,
+      position: 'right',
+      ticks: { color: text },
+      grid: { drawOnChartArea: false },
+    };
+    return options;
+  });
 
   // ---- Chart options (themed from the current PrimeNG CSS variables) ----
 
