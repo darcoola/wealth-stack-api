@@ -30,6 +30,11 @@ open class AccountMapper(
     }
 
     @Transactional
+    open fun createAll(mappings: List<Pair<String, String>>): List<AccountMapping> {
+        return mappings.map { (rawAccount, displayName) -> create(rawAccount, displayName) }
+    }
+
+    @Transactional
     open fun update(id: Long, rawAccount: String, displayName: String): AccountMapping {
         val account = rawAccount.trim()
         val name = displayName.trim()
