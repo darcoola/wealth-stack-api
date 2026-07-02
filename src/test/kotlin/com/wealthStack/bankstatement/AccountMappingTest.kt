@@ -15,11 +15,21 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class AccountMappingTest {
+    @MockitoBean
+    lateinit var searchRepository: com.wealthStack.bankstatement.search.BankingOperationSearchRepository
+
+    @MockitoBean
+    lateinit var elasticsearchOperations: org.springframework.data.elasticsearch.core.ElasticsearchOperations
+
+    @MockitoBean
+    lateinit var autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
+
 
     @LocalServerPort
     var port: Int = 0

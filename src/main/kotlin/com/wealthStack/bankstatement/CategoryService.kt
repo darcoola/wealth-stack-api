@@ -1,6 +1,7 @@
 package com.wealthStack.bankstatement
 
 import org.springframework.transaction.annotation.Transactional
+import com.wealthStack.bankstatement.search.AutoCategorizationService
 
 /**
  * Command side of the category dictionary: create, rename, delete entries, and assign/unassign a
@@ -10,7 +11,8 @@ import org.springframework.transaction.annotation.Transactional
  */
 open class CategoryService(
     private val categoryRepository: CategoryRepository,
-    private val bankingOperationRepository: BankingOperationRepository
+    private val bankingOperationRepository: BankingOperationRepository,
+    private val autoCategorizationService: AutoCategorizationService
 ) {
 
     @Transactional
@@ -57,7 +59,12 @@ open class CategoryService(
             categoryRepository.findById(it)
                 .orElseThrow { IllegalArgumentException("Category $it not found") }
         }
-        return bankingOperationRepository.save(operation)
+        operation.needsVerification = false
+        val saved = bankingOperationRepository.save(operation)
+        if (saved.category != null) {
+            autoCategorizationService.indexOperations(listOf(saved))
+        }
+        return saved
     }
 
     /** Assigns [categoryId] to every given operation, or clears it (Uncategorized) when null. */
@@ -68,7 +75,39 @@ open class CategoryService(
                 .orElseThrow { IllegalArgumentException("Category $it not found") }
         }
         val operations = bankingOperationRepository.findAllById(operationIds)
-        operations.forEach { it.category = category }
+        operations.forEach { 
+            it.category = category 
+            it.needsVerification = false
+        }
+        val saved = bankingOperationRepository.saveAll(operations).toList()
+        if (category != null) {
+            autoCategorizationService.indexOperations(saved)
+        }
+        return saved
+    }
+
+    @Transactional
+    open fun acceptPrediction(operationId: Long): BankingOperation {
+        val operation = bankingOperationRepository.findById(operationId)
+            .orElseThrow { IllegalArgumentException("Operation $operationId not found") }
+        operation.needsVerification = false
+        return bankingOperationRepository.save(operation)
+    }
+
+    @Transactional
+    open fun acceptPredictions(operationIds: List<Long>): List<BankingOperation> {
+        val operations = bankingOperationRepository.findAllById(operationIds)
+        operations.forEach { it.needsVerification = false }
         return bankingOperationRepository.saveAll(operations).toList()
+    }
+
+    /** Indexes all already-categorized operations into Elasticsearch to train the auto-categorization. */
+    @Transactional(readOnly = true)
+    open fun syncCategorizedOperationsToSearch(): Int {
+        val categorized = bankingOperationRepository.findAll().filter { it.category != null }
+        if (categorized.isNotEmpty()) {
+            autoCategorizationService.indexOperations(categorized)
+        }
+        return categorized.size
     }
 }

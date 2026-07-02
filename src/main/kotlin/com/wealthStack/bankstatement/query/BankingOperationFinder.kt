@@ -19,5 +19,6 @@ internal fun BankingOperation.toDto() = OperationDto(
     amount = amount,
     additionalInfo = additionalInfo,
     categoryId = category?.id,
-    category = category?.name
+    category = category?.name,
+    needsVerification = needsVerification
 )

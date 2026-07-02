@@ -17,4 +17,6 @@ export interface Operation {
   categoryId: number | null;
   /** Assigned category name, or `null` when Uncategorized. */
   category: string | null;
+  /** True if category was auto-assigned by ES and needs user confirmation. */
+  needsVerification: boolean;
 }

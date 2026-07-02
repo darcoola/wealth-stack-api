@@ -39,4 +39,14 @@ export class OperationsService {
   deleteBulk(operationIds: number[]): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/operations`, { body: { operationIds } });
   }
+
+  /** Accepts the auto-assigned category for a single operation. */
+  acceptPrediction(operationId: number): Observable<Operation> {
+    return this.http.put<Operation>(`${this.baseUrl}/operations/${operationId}/verify`, {});
+  }
+
+  /** Accepts the auto-assigned categories for multiple operations. */
+  acceptPredictionsBulk(operationIds: number[]): Observable<Operation[]> {
+    return this.http.put<Operation[]>(`${this.baseUrl}/operations/verify`, { operationIds });
+  }
 }

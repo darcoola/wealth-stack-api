@@ -1,5 +1,10 @@
 package com.wealthStack.bankstatement.parser
 
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import com.wealthStack.bankstatement.search.BankingOperationSearchRepository
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import com.wealthStack.bankstatement.search.AutoCategorizationService
+
 import assertk.assertThat
 import assertk.assertions.*
 import com.wealthStack.bankstatement.OperationType
@@ -9,6 +14,15 @@ import java.math.BigDecimal
 import java.time.LocalDate
 
 class PkoBpCsvParserTest {
+    @MockitoBean
+    lateinit var searchRepository: BankingOperationSearchRepository
+
+    @MockitoBean
+    lateinit var elasticsearchOperations: ElasticsearchOperations
+
+    @MockitoBean
+    lateinit var autoCategorizationService: AutoCategorizationService
+
 
     private val parser = PkoBpCsvParser()
 

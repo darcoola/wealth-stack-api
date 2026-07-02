@@ -9,7 +9,8 @@ open class StatementImporter(
     private val parserFactory: StatementParserFactory,
     private val repository: BankingOperationRepository,
     private val accountMappingRepository: AccountMappingRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
 ) {
 
     @Transactional
@@ -35,6 +36,15 @@ open class StatementImporter(
     private fun persist(operations: List<BankingOperation>, bankName: String, fileName: String?): ImportResult {
         applyAccountMappings(operations)
         resolveCategories(operations)
+        
+        operations.filter { it.category == null }.forEach { op ->
+            val predicted = autoCategorizationService.predictCategory(op)
+            if (predicted != null) {
+                op.category = predicted
+                op.needsVerification = true
+            }
+        }
+        
         assignFingerprints(operations)
 
         // Existing rows that could collide with this batch, keyed by their (fingerprint, occurrence)
@@ -58,6 +68,8 @@ open class StatementImporter(
         }
 
         repository.saveAll(persisted)
+        
+        autoCategorizationService.indexOperations(persisted)
 
         val origin = fileName?.let { " from $it" } ?: ""
         return ImportResult(

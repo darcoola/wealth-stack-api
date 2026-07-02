@@ -1,5 +1,10 @@
 package com.wealthStack.bankstatement
 
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import com.wealthStack.bankstatement.search.BankingOperationSearchRepository
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import com.wealthStack.bankstatement.search.AutoCategorizationService
+
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
@@ -13,6 +18,15 @@ import java.time.LocalDate
 
 @SpringBootTest
 class OperationCommandServiceTest {
+    @MockitoBean
+    lateinit var searchRepository: BankingOperationSearchRepository
+
+    @MockitoBean
+    lateinit var elasticsearchOperations: ElasticsearchOperations
+
+    @MockitoBean
+    lateinit var autoCategorizationService: AutoCategorizationService
+
 
     @Autowired
     lateinit var service: OperationCommandService

@@ -15,6 +15,9 @@ import com.wealthStack.bankstatement.query.ReportFinder
 import com.wealthStack.bankstatement.query.ReportQueryController
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import com.wealthStack.bankstatement.search.AutoCategorizationService
+import com.wealthStack.bankstatement.search.BankingOperationSearchRepository
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 
 @Configuration
 class BankStatementConfig {
@@ -33,12 +36,22 @@ class BankStatementConfig {
         StatementParserFactory(parsers)
 
     @Bean
+    fun autoCategorizationService(
+        searchRepository: BankingOperationSearchRepository,
+        elasticsearchOperations: ElasticsearchOperations,
+        categoryRepository: CategoryRepository
+    ): AutoCategorizationService {
+        return AutoCategorizationService(searchRepository, elasticsearchOperations, categoryRepository)
+    }
+
+    @Bean
     fun statementImporter(
         parserFactory: StatementParserFactory,
         repository: BankingOperationRepository,
         accountMappingRepository: AccountMappingRepository,
-        categoryRepository: CategoryRepository
-    ): StatementImporter = StatementImporter(parserFactory, repository, accountMappingRepository, categoryRepository)
+        categoryRepository: CategoryRepository,
+        autoCategorizationService: AutoCategorizationService
+    ): StatementImporter = StatementImporter(parserFactory, repository, accountMappingRepository, categoryRepository, autoCategorizationService)
 
     @Bean
     fun accountMapper(
@@ -49,8 +62,9 @@ class BankStatementConfig {
     @Bean
     fun categoryService(
         categoryRepository: CategoryRepository,
-        bankingOperationRepository: BankingOperationRepository
-    ): CategoryService = CategoryService(categoryRepository, bankingOperationRepository)
+        bankingOperationRepository: BankingOperationRepository,
+        autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
+    ): CategoryService = CategoryService(categoryRepository, bankingOperationRepository, autoCategorizationService)
 
     @Bean
     fun bankingOperationFinder(

@@ -8,6 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { Category } from '../../core/category';
 import { CategoriesService } from '../../core/categories.service';
 import { Operation } from '../../core/operation';
@@ -26,6 +27,7 @@ import { OperationsService } from '../../core/operations.service';
     IconFieldModule,
     InputIconModule,
     ButtonModule,
+    ToggleSwitchModule,
   ],
   templateUrl: './operations.html',
   styleUrl: './operations.scss',
@@ -43,9 +45,17 @@ export class Operations {
   protected readonly selected = signal<Operation[]>([]);
   protected readonly bulkCategoryId = signal<number | null>(null);
 
+  protected readonly showNeedsVerificationOnly = signal(false);
+
+  protected readonly operationsFiltered = computed(() =>
+    this.showNeedsVerificationOnly()
+      ? this.operations().filter((o) => o.needsVerification)
+      : this.operations()
+  );
+
   /** Net of all loaded operations (credits minus debits). */
   protected readonly total = computed(() =>
-    this.operations().reduce((sum, op) => sum + op.amount, 0),
+    this.operationsFiltered().reduce((sum, op) => sum + op.amount, 0),
   );
 
   constructor() {
@@ -80,7 +90,7 @@ export class Operations {
       next: (updated) => {
         this.operations.update((ops) =>
           ops.map((o) =>
-            o.id === op.id ? { ...o, categoryId: updated.categoryId, category: updated.category } : o,
+            o.id === op.id ? { ...o, categoryId: updated.categoryId, category: updated.category, needsVerification: updated.needsVerification } : o,
           ),
         );
       },
@@ -114,7 +124,7 @@ export class Operations {
         this.operations.update((ops) =>
           ops.map((o) => {
             const u = byId.get(o.id);
-            return u ? { ...o, categoryId: u.categoryId, category: u.category } : o;
+            return u ? { ...o, categoryId: u.categoryId, category: u.category, needsVerification: u.needsVerification } : o;
           }),
         );
         this.selected.set([]);
@@ -131,6 +141,32 @@ export class Operations {
       next: () => {
         const removed = new Set(ids);
         this.operations.update((ops) => ops.filter((o) => !removed.has(o.id)));
+        this.selected.set([]);
+      },
+    });
+  }
+
+  protected acceptPrediction(op: Operation): void {
+    this.service.acceptPrediction(op.id).subscribe({
+      next: (updated) => {
+        this.operations.update((ops) =>
+          ops.map((o) =>
+            o.id === op.id ? { ...o, needsVerification: false } : o,
+          ),
+        );
+      },
+    });
+  }
+
+  protected acceptPredictionsSelected(): void {
+    const ids = this.selected().map((o) => o.id);
+    if (ids.length === 0) return;
+    this.service.acceptPredictionsBulk(ids).subscribe({
+      next: () => {
+        const idSet = new Set(ids);
+        this.operations.update((ops) =>
+          ops.map((o) => (idSet.has(o.id) ? { ...o, needsVerification: false } : o)),
+        );
         this.selected.set([]);
       },
     });

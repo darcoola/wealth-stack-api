@@ -71,6 +71,9 @@ class BankingOperation(
     @Column(nullable = false)
     var occurrence: Int = 0,
 
+    @Column(name = "needs_verification", nullable = false)
+    var needsVerification: Boolean = false,
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null

@@ -13,7 +13,8 @@ data class OperationDto(
     val amount: BigDecimal,
     val additionalInfo: String?,
     val categoryId: Long?,
-    val category: String?
+    val category: String?,
+    val needsVerification: Boolean
 )
 
 data class AccountMappingDto(

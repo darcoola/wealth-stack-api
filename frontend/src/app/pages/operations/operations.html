@@ -11,7 +11,7 @@
 
 <p-table
   #dt
-  [value]="operations()"
+  [value]="operationsFiltered()"
   [(selection)]="selected"
   dataKey="id"
   [loading]="loading()"
@@ -34,6 +34,14 @@
           placeholder="Search operations"
           (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
       </p-iconfield>
+      
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+        <p-toggleSwitch
+          [ngModel]="showNeedsVerificationOnly()"
+          (ngModelChange)="showNeedsVerificationOnly.set($event)"
+          inputId="verifyToggle" />
+        <label for="verifyToggle">Needs verification</label>
+      </div>
       <div class="bulk-actions">
         @if (selected().length > 0) {
           <span class="bulk-count">{{ selected().length }} selected</span>
@@ -54,6 +62,15 @@
           size="small"
           [disabled]="selected().length === 0"
           (onClick)="assignSelected()" />
+        @if (showNeedsVerificationOnly()) {
+          <p-button
+            label="Accept Selected"
+            icon="pi pi-check"
+            size="small"
+            severity="success"
+            [disabled]="selected().length === 0"
+            (onClick)="acceptPredictionsSelected()" />
+        }
         <p-button
           label="Delete"
           icon="pi pi-trash"
@@ -113,16 +130,29 @@
       </td>
       <td>{{ op.accountDisplayName }}</td>
       <td>
-        <p-select
-          [options]="categories()"
-          optionLabel="name"
-          optionValue="id"
-          [ngModel]="op.categoryId"
-          (onChange)="assign(op, $event.value)"
-          [showClear]="true"
-          placeholder="Uncategorized"
-          appendTo="body"
-          styleClass="category-select" />
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <p-select
+            [options]="categories()"
+            optionLabel="name"
+            optionValue="id"
+            [ngModel]="op.categoryId"
+            (onChange)="assign(op, $event.value)"
+            [showClear]="true"
+            placeholder="Uncategorized"
+            appendTo="body"
+            styleClass="category-select" />
+            
+          @if (op.needsVerification) {
+            <p-button
+              icon="pi pi-check"
+              size="small"
+              severity="success"
+              [rounded]="true"
+              [text]="true"
+              pTooltip="Accept auto-assigned category"
+              (onClick)="acceptPrediction(op)" />
+          }
+        </div>
       </td>
       <td>
         <p-tag
@@ -150,7 +180,7 @@
 
   <ng-template pTemplate="summary">
     <div class="table-summary">
-      {{ operations().length }} operations · Net {{ total() | number: '1.2-2' }} PLN
+      {{ operationsFiltered().length }} operations · Net {{ total() | number: '1.2-2' }} PLN
     </div>
   </ng-template>
 </p-table>

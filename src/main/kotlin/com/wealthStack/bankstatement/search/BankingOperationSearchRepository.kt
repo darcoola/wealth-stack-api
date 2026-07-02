@@ -1,0 +1,5 @@
+package com.wealthStack.bankstatement.search
+
+import org.springframework.data.elasticsearch.repository.ElasticsearchRepository
+
+interface BankingOperationSearchRepository : ElasticsearchRepository<BankingOperationDocument, String>
