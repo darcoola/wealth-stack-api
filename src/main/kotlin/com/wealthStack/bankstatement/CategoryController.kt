@@ -10,6 +10,10 @@ class CategoryController(val service: CategoryService) {
     fun create(@RequestBody request: CategoryRequest): Category =
         service.create(request.name, request.type ?: CategoryType.SPENDING)
 
+    @PostMapping("/batch")
+    fun createBatch(@RequestBody requests: List<CategoryRequest>): List<Category> =
+        service.createAll(requests.map { Pair(it.name, it.type ?: CategoryType.SPENDING) })
+
     @PutMapping("/{id}")
     fun update(@PathVariable id: Long, @RequestBody request: CategoryRequest): Category =
         service.update(id, request.name, request.type)

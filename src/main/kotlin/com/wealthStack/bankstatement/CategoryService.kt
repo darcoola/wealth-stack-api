@@ -24,6 +24,11 @@ open class CategoryService(
     }
 
     @Transactional
+    open fun createAll(categories: List<Pair<String, CategoryType>>): List<Category> {
+        return categories.map { (name, type) -> create(name, type) }
+    }
+
+    @Transactional
     open fun rename(id: Long, name: String): Category = update(id, name, null)
 
     /** Updates the name and, when [type] is given, the spending/income type of a category. */

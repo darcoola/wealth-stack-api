@@ -7,6 +7,42 @@ Content-Type: application/json
 
 { "name": "Groceries" }
 
+### Create multiple categories
+POST http://localhost:8088/api/v1/categories/batch
+Content-Type: application/json
+
+[
+  { "name": "Dom", "type": "SPENDING" },
+  { "name": "Dzieci", "type": "SPENDING" },
+  { "name": "Dieta (Maczfit)", "type": "SPENDING" },
+  { "name": "Edukacja", "type": "SPENDING" },
+  { "name": "Firma Darek", "type": "INCOME" },
+  { "name": "Firma Kasia", "type": "INCOME" },
+  { "name": "Inwestycje", "type": "OTHERS" },
+  { "name": "Jedzenie/Restauracje", "type": "SPENDING" },
+  { "name": "Mieszkania BemoVita", "type": "OTHERS" },
+  { "name": "Mieszkanie Metro Zachód", "type": "OTHERS" },
+  { "name": "Odzież", "type": "SPENDING" },
+  { "name": "Oprocentowanie / Cashback", "type": "OTHERS" },
+  { "name": "Paliwo", "type": "SPENDING" },
+  { "name": "Podatki Darek", "type": "INCOME" },
+  { "name": "Podatki Kasia", "type": "INCOME" },
+  { "name": "Podróże", "type": "SPENDING" },
+  { "name": "Pożyczka", "type": "OTHERS" },
+  { "name": "Prezenty i Rozrywka", "type": "SPENDING" },
+  { "name": "Przelewy wewnętrzne", "type": "OTHERS" },
+  { "name": "Przychody Darek", "type": "INCOME" },
+  { "name": "Przychody Inne (sprzedaż itp.)", "type": "OTHERS" },
+  { "name": "Przychody Kasia", "type": "INCOME" },
+  { "name": "Samochód", "type": "SPENDING" },
+  { "name": "Sport", "type": "SPENDING" },
+  { "name": "Transport", "type": "SPENDING" },
+  { "name": "Wydatki inne", "type": "SPENDING" },
+  { "name": "Wypłata gotówki", "type": "OTHERS" },
+  { "name": "Zakupy", "type": "SPENDING" },
+  { "name": "Zdrowie i Uroda", "type": "SPENDING" }
+]
+
 ### Rename a category (replace 1 with a real id)
 PUT http://localhost:8088/api/v1/categories/1
 Content-Type: application/json
