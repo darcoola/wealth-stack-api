@@ -2,6 +2,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
+import { DatePickerModule } from 'primeng/datepicker';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
@@ -24,6 +25,7 @@ import { OperationsService } from '../../core/operations.service';
     TagModule,
     SelectModule,
     InputTextModule,
+    DatePickerModule,
     IconFieldModule,
     InputIconModule,
     ButtonModule,
@@ -46,29 +48,57 @@ export class Operations {
   protected readonly bulkCategoryId = signal<number | null>(null);
 
   protected readonly showNeedsVerificationOnly = signal(false);
-
-  protected readonly operationsFiltered = computed(() =>
-    this.showNeedsVerificationOnly()
-      ? this.operations().filter((o) => o.needsVerification)
-      : this.operations()
-  );
+  protected readonly selectedMonthDate = signal<Date | null>(null);
+  protected readonly totalRecords = signal(0);
+  protected lastTableEvent: any = null;
 
   /** Net of all loaded operations (credits minus debits). */
   protected readonly total = computed(() =>
-    this.operationsFiltered().reduce((sum, op) => sum + op.amount, 0),
+    this.operations().reduce((sum, op) => sum + op.amount, 0),
   );
 
   constructor() {
-    this.load();
     this.loadCategories();
   }
 
-  protected load(): void {
+  protected load(event?: any): void {
+    if (event) {
+      this.lastTableEvent = event;
+    } else {
+      event = this.lastTableEvent;
+    }
+
     this.loading.set(true);
     this.error.set(null);
-    this.service.getAll().subscribe({
-      next: (operations) => {
-        this.operations.set(operations);
+
+    const params: any = {};
+    if (event) {
+      params.page = Math.floor((event.first ?? 0) / (event.rows ?? 20));
+      params.size = event.rows ?? 20;
+      if (event.globalFilter) {
+        params.globalFilter = event.globalFilter;
+      }
+      if (event.sortField) {
+        params.sort = `${event.sortField},${event.sortOrder === 1 ? 'asc' : 'desc'}`;
+      }
+    } else {
+      params.page = 0;
+      params.size = 20;
+    }
+
+    params.needsVerificationOnly = this.showNeedsVerificationOnly();
+
+    const monthDate = this.selectedMonthDate();
+    if (monthDate) {
+      const y = monthDate.getFullYear();
+      const m = String(monthDate.getMonth() + 1).padStart(2, '0');
+      params.monthDate = `${y}-${m}`;
+    }
+
+    this.service.getAll(params).subscribe({
+      next: (page) => {
+        this.operations.set(page.content);
+        this.totalRecords.set(page.totalElements);
         this.loading.set(false);
       },
       error: () => {
@@ -76,6 +106,13 @@ export class Operations {
         this.loading.set(false);
       },
     });
+  }
+
+  protected onFilterChange(): void {
+    if (this.lastTableEvent) {
+      this.lastTableEvent.first = 0;
+    }
+    this.load();
   }
 
   protected loadCategories(): void {

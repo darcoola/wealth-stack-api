@@ -4,7 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import java.math.BigDecimal
 
-interface BankingOperationRepository : JpaRepository<BankingOperation, Long> {
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+
+interface BankingOperationRepository : JpaRepository<BankingOperation, Long>, JpaSpecificationExecutor<BankingOperation> {
     fun findAllByAccount(account: String): List<BankingOperation>
 
     fun findAllByFingerprintIn(fingerprints: Collection<String>): List<BankingOperation>

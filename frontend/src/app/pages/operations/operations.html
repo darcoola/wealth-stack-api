@@ -11,14 +11,16 @@
 
 <p-table
   #dt
-  [value]="operationsFiltered()"
+  [value]="operations()"
   [(selection)]="selected"
   dataKey="id"
   [loading]="loading()"
   [paginator]="true"
+  [lazy]="true"
+  (onLazyLoad)="load($event)"
+  [totalRecords]="totalRecords()"
   [rows]="20"
   [rowsPerPageOptions]="[10, 20, 50, 100]"
-  [globalFilterFields]="['description', 'additionalInfo', 'accountDisplayName', 'account', 'category']"
   sortField="date"
   [sortOrder]="-1"
   styleClass="p-datatable-sm"
@@ -36,9 +38,18 @@
       </p-iconfield>
       
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+        <p-datepicker
+          [ngModel]="selectedMonthDate()"
+          (ngModelChange)="selectedMonthDate.set($event); onFilterChange()"
+          view="month"
+          dateFormat="M yy"
+          [showClear]="true"
+          [readonlyInput]="true"
+          placeholder="Month"
+          appendTo="body" />
         <p-toggleSwitch
           [ngModel]="showNeedsVerificationOnly()"
-          (ngModelChange)="showNeedsVerificationOnly.set($event)"
+          (ngModelChange)="showNeedsVerificationOnly.set($event); onFilterChange()"
           inputId="verifyToggle" />
         <label for="verifyToggle">Needs verification</label>
       </div>
@@ -180,7 +191,7 @@
 
   <ng-template pTemplate="summary">
     <div class="table-summary">
-      {{ operationsFiltered().length }} operations · Net {{ total() | number: '1.2-2' }} PLN
+      {{ totalRecords() }} operations (Page Net {{ total() | number: '1.2-2' }} PLN)
     </div>
   </ng-template>
 </p-table>

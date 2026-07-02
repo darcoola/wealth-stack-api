@@ -3,14 +3,22 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Operation } from './operation';
 
+export interface Page<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 /** Read access to bank operations. The base path is proxied to the backend in dev. */
 @Injectable({ providedIn: 'root' })
 export class OperationsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/v1/bank-statements';
 
-  getAll(): Observable<Operation[]> {
-    return this.http.get<Operation[]>(this.baseUrl);
+  getAll(params?: { [param: string]: string | number | boolean | readonly (string | number | boolean)[] }): Observable<Page<Operation>> {
+    return this.http.get<Page<Operation>>(this.baseUrl, { params });
   }
 
   /** Assigns a category to an operation, or clears it (Uncategorized) when `categoryId` is null. */
