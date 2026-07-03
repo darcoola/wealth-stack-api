@@ -9,6 +9,9 @@ class MBankCsvParser : StatementParser {
 
     override val bankName: String = "mbank"
 
+    override fun canParse(content: String): Boolean =
+        content.lineSequence().any { it.startsWith("#Data operacji;") }
+
     override fun parse(content: String, sourceFileName: String): List<BankingOperation> {
         val lines = content.lines()
         val dataStartIndex = lines.indexOfFirst { it.startsWith("#Data operacji;") }

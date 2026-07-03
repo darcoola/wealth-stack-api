@@ -33,6 +33,12 @@ class ManualCsvParser : StatementParser {
 
     override val bankName: String = "manual"
 
+    override fun canParse(content: String): Boolean {
+        val header = parseCsvRecords(content).firstOrNull() ?: return false
+        val columns = header.map { it.trim().lowercase() }.toSet()
+        return REQUIRED_COLUMNS.all { it in columns }
+    }
+
     override fun parse(content: String, sourceFileName: String): List<BankingOperation> {
         val records = parseCsvRecords(content)
         require(records.isNotEmpty()) { "Manual CSV is empty" }

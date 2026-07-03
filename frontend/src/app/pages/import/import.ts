@@ -20,8 +20,13 @@ export class Import {
 
   private readonly fileUpload = viewChild<FileUpload>('fileUpload');
 
-  protected readonly banks = this.service.banks;
-  protected readonly selectedBank = signal<string | null>(null);
+  /** Sentinel option value for "let the backend detect the parser from the file content". */
+  protected readonly AUTO = 'auto';
+  protected readonly bankOptions = [
+    { id: this.AUTO, label: 'Auto-detect (from file content)' },
+    ...this.service.banks,
+  ];
+  protected readonly selectedBank = signal<string>(this.AUTO);
 
   protected readonly uploading = signal(false);
   protected readonly result = signal<ImportResult | null>(null);
@@ -31,11 +36,12 @@ export class Import {
   protected readonly maxFileSize = 10 * 1024 * 1024;
 
   protected onUpload(event: { files: File[] }): void {
-    const bankName = this.selectedBank();
     const file = event.files[0];
-    if (!bankName || !file) {
+    if (!file) {
       return;
     }
+    const selected = this.selectedBank();
+    const bankName = selected === this.AUTO ? null : selected;
 
     this.uploading.set(true);
     this.result.set(null);

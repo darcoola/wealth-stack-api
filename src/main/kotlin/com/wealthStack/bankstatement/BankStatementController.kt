@@ -16,7 +16,7 @@ class BankStatementController(val importer: StatementImporter) {
     @PostMapping
     fun uploadStatement(
         @RequestParam("file") file: MultipartFile,
-        @RequestParam("bankName") bankName: String
+        @RequestParam("bankName", required = false) bankName: String?
     ): ResponseEntity<Any> {
         return try {
             val result: ImportResult = importer.importStatement(bankName, file.originalFilename ?: "unknown", file.bytes)

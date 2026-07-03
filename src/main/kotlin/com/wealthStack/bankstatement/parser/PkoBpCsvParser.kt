@@ -25,6 +25,9 @@ class PkoBpCsvParser : StatementParser {
 
     override val charset: Charset = Charset.forName("windows-1250")
 
+    override fun canParse(content: String): Boolean =
+        content.lineSequence().any { parseCsvLine(it).firstOrNull()?.trim() == "Data operacji" }
+
     override fun parse(content: String, sourceFileName: String): List<BankingOperation> {
         val lines = content.lines()
         val headerIndex = lines.indexOfFirst { parseCsvLine(it).firstOrNull()?.trim() == "Data operacji" }

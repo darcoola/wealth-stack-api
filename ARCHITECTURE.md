@@ -98,9 +98,13 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
 (Entities and `JpaRepository` interfaces are still picked up by Spring Data automatically.)
 
 ### Import flow (command side)
-1. `BankStatementController` `POST /api/v1/bank-statements` (multipart `file` + `bankName`).
-2. `StatementImporter.importStatement` → `StatementParserFactory.getParser(bankName)`
-   (case-insensitive; throws `IllegalArgumentException` → HTTP 400 for unknown banks).
+1. `BankStatementController` `POST /api/v1/bank-statements` (multipart `file` + **optional** `bankName`).
+2. `StatementImporter.importStatement` picks the parser: an explicit `bankName` →
+   `StatementParserFactory.getParser` (case-insensitive; unknown bank → `IllegalArgumentException`
+   → HTTP 400); a blank/absent `bankName` → `StatementParserFactory.detectParser`, which decodes
+   the bytes leniently (ISO-8859-1, so detection runs before the real charset is known) and asks
+   each parser's `canParse(content)`. Exactly one match wins; **no match or an ambiguous
+   multi-match throws `IllegalArgumentException` → HTTP 400** (the user then names the bank).
 3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
 4. Importer applies known account mappings to set `accountDisplayName`, and resolves a category for any row
    that names one (manual imports only — see below); rows from raw bank parsers carry no category and
@@ -174,8 +178,11 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 
 ## Parsers
 
-`StatementParser` interface: `bankName`, `charset` (default UTF-8), `parse(content, sourceFileName)`.
-Factory keys parsers by lowercase `bankName`.
+`StatementParser` interface: `bankName`, `charset` (default UTF-8), `canParse(content)`,
+`parse(content, sourceFileName)`. Factory keys parsers by lowercase `bankName` (`getParser`) and
+auto-detects one from file content (`detectParser`) via each parser's `canParse`. Each `canParse`
+keys off a distinctive ASCII header marker (they don't overlap): mBank's `#Data operacji;` line,
+PKO BP's `Data operacji` CSV header field, the manual schema's required column names.
 
 - **`MBankCsvParser`** (`bankName="mbank"`, UTF-8): `;`-separated; data starts after the
   `#Data operacji;` header line; amounts use Polish format (comma decimal, ` PLN` suffix).

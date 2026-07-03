@@ -13,11 +13,20 @@ open class StatementImporter(
     private val autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
 ) {
 
+    /**
+     * Imports a bank CSV. When [bankName] is null/blank the parser is auto-detected from the file
+     * content ([StatementParserFactory.detectParser]); an unrecognized or ambiguous file fails the
+     * import (HTTP 400).
+     */
     @Transactional
-    open fun importStatement(bankName: String, fileName: String, content: ByteArray): ImportResult {
-        val parser = parserFactory.getParser(bankName)
+    open fun importStatement(bankName: String?, fileName: String, content: ByteArray): ImportResult {
+        val parser = if (bankName.isNullOrBlank()) {
+            parserFactory.detectParser(content)
+        } else {
+            parserFactory.getParser(bankName)
+        }
         val operations = parser.parse(String(content, parser.charset), fileName)
-        return persist(operations, bankName, fileName)
+        return persist(operations, parser.bankName, fileName)
     }
 
     /**

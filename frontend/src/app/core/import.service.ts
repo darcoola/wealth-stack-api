@@ -23,10 +23,13 @@ export class ImportService {
     { id: 'manual', label: 'Manual (WealthStack CSV)' },
   ];
 
-  importStatement(bankName: string, file: File): Observable<ImportResult> {
+  /** Omit `bankName` to let the backend auto-detect the parser from the file content. */
+  importStatement(bankName: string | null, file: File): Observable<ImportResult> {
     const form = new FormData();
     form.append('file', file);
-    form.append('bankName', bankName);
+    if (bankName) {
+      form.append('bankName', bankName);
+    }
     return this.http.post<ImportResult>(this.baseUrl, form);
   }
 }

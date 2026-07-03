@@ -7,14 +7,13 @@
       <label for="bank">Bank</label>
       <p-select
         inputId="bank"
-        [options]="banks"
+        [options]="bankOptions"
         optionLabel="label"
         optionValue="id"
         [ngModel]="selectedBank()"
         (ngModelChange)="selectedBank.set($event)"
-        placeholder="Select a bank"
         styleClass="bank-select" />
-      <small class="hint">The bank determines how the file is parsed.</small>
+      <small class="hint">Leave on “Auto-detect” to pick the parser from the file content, or choose a bank to force one.</small>
     </div>
 
     <div class="field">
@@ -26,19 +25,12 @@
         [multiple]="false"
         accept=".csv"
         [maxFileSize]="maxFileSize"
-        [disabled]="!selectedBank()"
         chooseLabel="Choose CSV"
         uploadLabel="Import"
         cancelLabel="Clear"
         (uploadHandler)="onUpload($event)">
         <ng-template pTemplate="empty">
-          <p class="upload-hint">
-            @if (selectedBank()) {
-              Drag and drop a .csv statement here, or use “Choose CSV”.
-            } @else {
-              Select a bank first to enable the upload.
-            }
-          </p>
+          <p class="upload-hint">Drag and drop a .csv statement here, or use “Choose CSV”.</p>
         </ng-template>
       </p-fileupload>
     </div>
