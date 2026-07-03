@@ -20,6 +20,7 @@ export class ImportService {
   readonly banks: Bank[] = [
     { id: 'mbank', label: 'mBank' },
     { id: 'pkobp', label: 'PKO BP' },
+    { id: 'revolut', label: 'Revolut' },
     { id: 'manual', label: 'Manual (WealthStack CSV)' },
   ];
 
