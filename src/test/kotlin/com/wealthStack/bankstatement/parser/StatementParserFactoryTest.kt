@@ -9,7 +9,8 @@ import org.springframework.core.io.ClassPathResource
 
 class StatementParserFactoryTest {
 
-    private val factory = StatementParserFactory(listOf(MBankCsvParser(), PkoBpCsvParser(), ManualCsvParser()))
+    private val factory =
+        StatementParserFactory(listOf(MBankCsvParser(), PkoBpCsvParser(), RevolutCsvParser(), ManualCsvParser()))
 
     private fun bytes(fixture: String) = ClassPathResource(fixture).inputStream.use { it.readBytes() }
 
@@ -21,6 +22,11 @@ class StatementParserFactoryTest {
     @Test
     fun `detects PKO BP from file content despite its windows-1250 encoding`() {
         assertThat(factory.detectParser(bytes("pkobp-test-statement.csv")).bankName).isEqualTo("pkobp")
+    }
+
+    @Test
+    fun `detects Revolut from file content`() {
+        assertThat(factory.detectParser(bytes("revolut-test-statement.csv")).bankName).isEqualTo("revolut")
     }
 
     @Test

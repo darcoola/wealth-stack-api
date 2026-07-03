@@ -182,7 +182,8 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 `parse(content, sourceFileName)`. Factory keys parsers by lowercase `bankName` (`getParser`) and
 auto-detects one from file content (`detectParser`) via each parser's `canParse`. Each `canParse`
 keys off a distinctive ASCII header marker (they don't overlap): mBank's `#Data operacji;` line,
-PKO BP's `Data operacji` CSV header field, the manual schema's required column names.
+PKO BP's `Data operacji` CSV header field, Revolut's `Rodzaj,Produkt,` header prefix, the manual
+schema's required column names.
 
 - **`MBankCsvParser`** (`bankName="mbank"`, UTF-8): `;`-separated; data starts after the
   `#Data operacji;` header line; amounts use Polish format (comma decimal, ` PLN` suffix).
@@ -190,6 +191,12 @@ PKO BP's `Data operacji` CSV header field, the manual schema's required column n
   quoted, quote-aware splitter (commas can appear inside quoted fields). Data starts after the
   `Data operacji` header; description spans trailing columns; `account` extracted from
   `Numer karty:` / `Rachunek nadawcy:` labels.
+- **`RevolutCsvParser`** (`bankName="revolut"`, UTF-8): comma-separated, quote-aware (fields quoted
+  only when they contain a comma). Columns: `Rodzaj, Produkt, Data rozpoczęcia, Data zrealizowania,
+  Opis, Kwota, Opłata, Waluta, State, Saldo`. Date from the `Data rozpoczęcia` (started) timestamp's
+  date part; `account` = `Produkt` (the pocket — `Bieżące`/`Oszczędności` — since Revolut exports
+  carry no IBAN); dot-decimal signed `Kwota`. Only completed rows (`State == ZAKOŃCZONO`) are
+  imported; reverted/pending (e.g. `COFNIĘTO`) are skipped. `Opłata`/`Saldo` ignored.
 - **`ManualCsvParser`** (`bankName="manual"`, UTF-8): WealthStack's **own predefined schema** for
   already-prepared rows (historical data / unparsed banks) — not a bank export. Header row names
   the columns (case-insensitive, order-independent): required `date,bankName,account,description,

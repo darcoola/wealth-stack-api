@@ -1,0 +1,6 @@
+Rodzaj,Produkt,Data rozpoczęcia,Data zrealizowania,Opis,Kwota,Opłata,Waluta,State,Saldo
+Zasilenie,Bieżące,2026-01-02 20:07:23,2026-01-02 20:07:44,Zasilenie o *8174,80000.00,0.00,PLN,ZAKOŃCZONO,81863.24
+Przelew,Bieżące,2026-01-02 20:52:41,2026-01-02 20:52:41,Depositing savings,-80000.00,0.00,PLN,ZAKOŃCZONO,1863.24
+Płatność kartą,Bieżące,2026-01-03 21:34:23,,Google One,-13.99,0.00,PLN,COFNIĘTO,
+Przelew,Bieżące,2026-01-19 12:49:45,2026-01-19 12:49:47,"Przelew na telefon BLIK ",-1.00,0.00,PLN,ZAKOŃCZONO,308.34
+Płatność kartą,Oszczędności,2026-01-09 19:39:43,2026-01-10 03:40:28,GitHub,-36.40,0.00,PLN,ZAKOŃCZONO,1400.02

@@ -41,6 +41,9 @@ bin/
 ### Mac OS ###
 .DS_Store
 
+### Local bank statement exports (real financial data — never commit) ###
+/revolut.csv
+
 ### Frontend (Angular) ###
 frontend/node_modules/
 frontend/dist/
