@@ -1,15 +1,72 @@
 .table-caption {
   display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.table-caption-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-caption-left {
+  display: flex;
+  align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  label {
+    cursor: pointer;
+    user-select: none;
+    color: var(--p-text-color);
+  }
 }
 
 .bulk-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: var(--p-content-border-radius);
+  transition: all 0.2s;
+  
+  &--active {
+    background: var(--p-primary-50);
+    border-color: var(--p-primary-200);
+    
+    .bulk-count {
+      color: var(--p-primary-700);
+      font-weight: 600;
+    }
+  }
+}
+
+.bulk-actions-left {
+  display: flex;
+  align-items: center;
+}
+
+.bulk-actions-right {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .bulk-count {
@@ -90,4 +147,32 @@
   border-radius: var(--p-content-border-radius);
   background: var(--p-red-50);
   color: var(--p-red-700);
+}
+
+:host ::ng-deep {
+  .operations-table {
+    font-size: 0.8125rem;
+
+    .p-datatable-thead > tr > th,
+    .p-datatable-tbody > tr > td {
+      padding: 0.25rem 0.5rem;
+    }
+
+    .p-select .p-select-label,
+    .p-inputtext,
+    .p-button {
+      font-size: 0.8125rem;
+      padding: 0.25rem 0.5rem;
+    }
+    
+    .p-button.p-button-icon-only {
+      width: 1.75rem;
+      padding: 0;
+    }
+
+    .p-tag {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+    }
+  }
 }

@@ -15,7 +15,8 @@ class BankingOperationQueryController(val finder: BankingOperationFinder) {
     fun getAll(
         @RequestParam(required = false) globalFilter: String?,
         @RequestParam(required = false, defaultValue = "false") needsVerificationOnly: Boolean,
+        @RequestParam(required = false, defaultValue = "false") uncategorizedOnly: Boolean,
         @RequestParam(required = false) monthDate: String?,
         pageable: Pageable
-    ): Page<OperationDto> = finder.findAll(globalFilter, needsVerificationOnly, monthDate, pageable)
+    ): Page<OperationDto> = finder.findAll(globalFilter, needsVerificationOnly, uncategorizedOnly, monthDate, pageable)
 }

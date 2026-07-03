@@ -10,6 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { Category } from '../../core/category';
 import { CategoriesService } from '../../core/categories.service';
 import { Operation } from '../../core/operation';
@@ -30,6 +31,7 @@ import { OperationsService } from '../../core/operations.service';
     InputIconModule,
     ButtonModule,
     ToggleSwitchModule,
+    SelectButtonModule,
   ],
   templateUrl: './operations.html',
   styleUrl: './operations.scss',
@@ -47,7 +49,15 @@ export class Operations {
   protected readonly selected = signal<Operation[]>([]);
   protected readonly bulkCategoryId = signal<number | null>(null);
 
-  protected readonly showNeedsVerificationOnly = signal(false);
+  protected readonly quickFilterOptions = signal([
+    { label: 'All', value: 'all' },
+    { label: 'Needs verification', value: 'verify' },
+    { label: 'Uncategorized', value: 'uncategorized' },
+  ]);
+  protected readonly quickFilter = signal<'all' | 'verify' | 'uncategorized'>('all');
+
+  protected readonly showNeedsVerificationOnly = computed(() => this.quickFilter() === 'verify');
+  protected readonly showUncategorizedOnly = computed(() => this.quickFilter() === 'uncategorized');
   protected readonly selectedMonthDate = signal<Date | null>(null);
   protected readonly totalRecords = signal(0);
   protected lastTableEvent: any = null;
@@ -87,6 +97,7 @@ export class Operations {
     }
 
     params.needsVerificationOnly = this.showNeedsVerificationOnly();
+    params.uncategorizedOnly = this.showUncategorizedOnly();
 
     const monthDate = this.selectedMonthDate();
     if (monthDate) {

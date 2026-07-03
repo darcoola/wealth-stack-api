@@ -14,6 +14,7 @@ open class BankingOperationFinder(
     open fun findAll(
         globalFilter: String?,
         needsVerificationOnly: Boolean,
+        uncategorizedOnly: Boolean,
         monthDateStr: String?,
         pageable: Pageable
     ): Page<OperationDto> {
@@ -22,6 +23,10 @@ open class BankingOperationFinder(
 
             if (needsVerificationOnly) {
                 predicates.add(cb.isTrue(root.get<Boolean>("needsVerification")))
+            }
+
+            if (uncategorizedOnly) {
+                predicates.add(cb.isNull(root.get<Any>("category")))
             }
 
             if (!globalFilter.isNullOrBlank()) {

@@ -22,5 +22,9 @@ Content-Type: application/json
   {
     "rawAccount": "WORLD MASTERCARD INTENSIVE 5272********4049",
     "displayName": "Kredytowa mBank Darek"
+  },
+  {
+    "rawAccount": "mBiznes konto Standard 9311 ... 7527",
+    "displayName": "Firmowe mBank"
   }
 ]
