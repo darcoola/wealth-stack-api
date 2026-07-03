@@ -74,10 +74,18 @@ class AccountMappingTest {
         )
     }
 
-    private fun fetchOperations(): List<Map<*, *>> = rest.getForEntity(
-        "${baseUrl()}/api/v1/bank-statements",
-        List::class.java
-    ).body!!.filterIsInstance<Map<*, *>>()
+    /**
+     * The read endpoint returns a Spring Data [org.springframework.data.domain.Page] (serialized as
+     * `{ content: [...], page: {...} }`), not a bare array, so pull the rows out of `content`. A
+     * large page size keeps this a "fetch all operations" helper.
+     */
+    private fun fetchOperations(): List<Map<*, *>> {
+        val body = rest.getForEntity(
+            "${baseUrl()}/api/v1/bank-statements?size=2000",
+            Map::class.java
+        ).body!!
+        return (body["content"] as List<*>).filterIsInstance<Map<*, *>>()
+    }
 
     @Test
     fun `mapping applied during import`() {
