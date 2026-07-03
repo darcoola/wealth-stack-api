@@ -109,7 +109,7 @@ export class Operations {
     this.service.getAll(params).subscribe({
       next: (page) => {
         this.operations.set(page.content);
-        this.totalRecords.set(page.totalElements);
+        this.totalRecords.set(page.page.totalElements);
         this.loading.set(false);
       },
       error: () => {

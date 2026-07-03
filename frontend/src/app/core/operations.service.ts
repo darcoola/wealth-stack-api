@@ -3,12 +3,18 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Operation } from './operation';
 
+/**
+ * Paginated response as serialized by Spring Data's `VIA_DTO` mode: the page metadata is nested
+ * under `page` rather than being flattened onto the top-level object.
+ */
 export interface Page<T> {
   content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
 }
 
 /** Read access to bank operations. The base path is proxied to the backend in dev. */
