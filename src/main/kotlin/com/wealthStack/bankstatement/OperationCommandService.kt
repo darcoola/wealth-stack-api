@@ -17,6 +17,18 @@ open class OperationCommandService(
     }
 
     /**
+     * Permanently removes every operation. Used by the Administration page to wipe the ledger clean
+     * (e.g. to start over); account mappings, categories and groups are left intact. Returns the
+     * number of operations that were deleted.
+     */
+    @Transactional
+    open fun deleteEverything(): Long {
+        val count = bankingOperationRepository.count()
+        bankingOperationRepository.deleteAll()
+        return count
+    }
+
+    /**
      * Sets (or clears, with a blank value) the free-text [BankingOperation.additionalInfo] note on a
      * single operation — the user can annotate any row, including bank-imported ones that carry none.
      */

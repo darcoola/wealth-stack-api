@@ -54,6 +54,11 @@ export class OperationsService {
     return this.http.delete<void>(`${this.baseUrl}/operations`, { body: { operationIds } });
   }
 
+  /** Permanently deletes every operation, returning how many were removed. */
+  deleteAll(): Observable<{ deletedCount: number }> {
+    return this.http.delete<{ deletedCount: number }>(`${this.baseUrl}/operations/all`);
+  }
+
   /** Accepts the auto-assigned category for a single operation. */
   acceptPrediction(operationId: number): Observable<Operation> {
     return this.http.put<Operation>(`${this.baseUrl}/operations/${operationId}/verify`, {});

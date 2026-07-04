@@ -1,0 +1,32 @@
+<h1 class="page-title">Administration</h1>
+<p class="page-subtitle">Maintenance actions for your WealthStack data.</p>
+
+@if (error()) {
+  <div class="error-banner" role="alert">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ error() }}</span>
+  </div>
+}
+
+@if (result()) {
+  <div class="success-banner" role="status">
+    <i class="pi pi-check-circle"></i>
+    <span>{{ result() }}</span>
+  </div>
+}
+
+<section class="danger-zone">
+  <h2>Danger zone</h2>
+  <div class="danger-action">
+    <div class="danger-copy">
+      <strong>Remove all operations</strong>
+      <span>Permanently deletes every imported operation. Account mappings, categories and groups are kept.</span>
+    </div>
+    <p-button
+      label="Remove all operations"
+      icon="pi pi-trash"
+      severity="danger"
+      [loading]="deleting()"
+      (onClick)="removeAllOperations()" />
+  </div>
+</section>

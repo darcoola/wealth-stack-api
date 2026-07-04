@@ -34,6 +34,10 @@ class OperationCommandController(
     fun deleteBulk(@RequestBody request: BulkDeleteRequest) =
         operationService.deleteAll(request.operationIds)
 
+    @DeleteMapping("/all")
+    fun deleteEverything(): Map<String, Long> =
+        mapOf("deletedCount" to operationService.deleteEverything())
+
     @PutMapping("/{id}/verify")
     fun acceptPrediction(@PathVariable id: Long): OperationDto =
         service.acceptPrediction(id).toDto()

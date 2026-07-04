@@ -25,6 +25,7 @@ export class App {
     { label: 'Import', icon: 'pi pi-upload', routerLink: '/import' },
     { label: 'Accounts', icon: 'pi pi-id-card', routerLink: '/accounts' },
     { label: 'Reports', icon: 'pi pi-chart-bar', routerLink: '/reports' },
+    { label: 'Administration', icon: 'pi pi-cog', routerLink: '/administration' },
   ];
 
   protected toggleSidebar(): void {

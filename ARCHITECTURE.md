@@ -170,7 +170,10 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
 - `OperationCommandController` bulk actions: `PUT /api/v1/bank-statements/operations/category`
   (`{ "operationIds": [Long], "categoryId": Long? }`) → `CategoryService.assignToOperations`
   (bulk assign/clear); `DELETE /api/v1/bank-statements/operations`
-  (`{ "operationIds": [Long] }`) → `OperationCommandService.deleteAll` (permanent bulk delete).
+  (`{ "operationIds": [Long] }`) → `OperationCommandService.deleteAll` (permanent bulk delete);
+  `DELETE /api/v1/bank-statements/operations/all` → `OperationCommandService.deleteEverything`
+  (wipes every operation, returns `{ "deletedCount": Long }`; mappings/categories/groups untouched —
+  backs the Administration page's "Remove all operations").
 
 ### Read side (query package)
 - `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`

@@ -37,5 +37,10 @@ export const routes: Routes = [
     title: 'Reports · WealthStack',
     loadComponent: () => import('./pages/reports/reports').then((m) => m.Reports),
   },
+  {
+    path: 'administration',
+    title: 'Administration · WealthStack',
+    loadComponent: () => import('./pages/administration/administration').then((m) => m.Administration),
+  },
   { path: '**', redirectTo: 'dashboard' },
 ];

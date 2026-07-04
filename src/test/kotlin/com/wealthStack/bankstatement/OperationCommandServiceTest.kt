@@ -37,7 +37,7 @@ class OperationCommandServiceTest {
     @BeforeEach
     fun clean() = repository.deleteAll()
 
-    private fun persistOperation(additionalInfo: String? = null): BankingOperation =
+    private fun persistOperation(additionalInfo: String? = null, fingerprint: String = ""): BankingOperation =
         repository.save(
             BankingOperation(
                 date = LocalDate.of(2025, 1, 1),
@@ -47,6 +47,7 @@ class OperationCommandServiceTest {
                 bankName = "mbank",
                 account = "ACME 111",
                 additionalInfo = additionalInfo,
+                fingerprint = fingerprint,
             )
         )
 
@@ -71,5 +72,17 @@ class OperationCommandServiceTest {
     @Test
     fun `throws for an unknown operation`() {
         assertThrows<IllegalArgumentException> { service.updateAdditionalInfo(-1, "x") }
+    }
+
+    @Test
+    fun `deleteEverything removes all operations and reports the count`() {
+        persistOperation(fingerprint = "a")
+        persistOperation(fingerprint = "b")
+        persistOperation(fingerprint = "c")
+
+        val deleted = service.deleteEverything()
+
+        assertThat(deleted).isEqualTo(3L)
+        assertThat(repository.count()).isEqualTo(0L)
     }
 }
