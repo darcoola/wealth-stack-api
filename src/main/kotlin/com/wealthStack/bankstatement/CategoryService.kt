@@ -9,31 +9,41 @@ import com.wealthStack.bankstatement.search.AutoCategorizationService
  * that is in use first un-assigns it from every operation (back to Uncategorized) so the foreign
  * key never blocks the delete.
  */
+/**
+ * Whether a category update should change the group. [KeepGroup] leaves it untouched (used by
+ * `rename`); [SetGroup] assigns it — including to `null` (Ungrouped) — so "set to no group" is
+ * distinguishable from "don't touch the group".
+ */
+sealed interface GroupChange
+data object KeepGroup : GroupChange
+data class SetGroup(val groupId: Long?) : GroupChange
+
 open class CategoryService(
     private val categoryRepository: CategoryRepository,
+    private val categoryGroupRepository: CategoryGroupRepository,
     private val bankingOperationRepository: BankingOperationRepository,
     private val autoCategorizationService: AutoCategorizationService
 ) {
 
     @Transactional
-    open fun create(name: String, type: CategoryType = CategoryType.SPENDING): Category {
+    open fun create(name: String, groupId: Long? = null): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
         require(categoryRepository.findByName(trimmed) == null) { "Category '$trimmed' already exists" }
-        return categoryRepository.save(Category(trimmed, type))
+        return categoryRepository.save(Category(trimmed, resolveGroup(groupId)))
     }
 
     @Transactional
-    open fun createAll(categories: List<Pair<String, CategoryType>>): List<Category> {
-        return categories.map { (name, type) -> create(name, type) }
+    open fun createAll(categories: List<Pair<String, Long?>>): List<Category> {
+        return categories.map { (name, groupId) -> create(name, groupId) }
     }
 
     @Transactional
-    open fun rename(id: Long, name: String): Category = update(id, name, null)
+    open fun rename(id: Long, name: String): Category = update(id, name, KeepGroup)
 
-    /** Updates the name and, when [type] is given, the spending/income type of a category. */
+    /** Updates the name and, when [group] is a [SetGroup], the group a category belongs to. */
     @Transactional
-    open fun update(id: Long, name: String, type: CategoryType?): Category {
+    open fun update(id: Long, name: String, group: GroupChange): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
         val category = categoryRepository.findById(id)
@@ -41,8 +51,13 @@ open class CategoryService(
         val clash = categoryRepository.findByName(trimmed)
         require(clash == null || clash.id == id) { "Category '$trimmed' already exists" }
         category.name = trimmed
-        type?.let { category.type = it }
+        if (group is SetGroup) category.group = resolveGroup(group.groupId)
         return categoryRepository.save(category)
+    }
+
+    private fun resolveGroup(groupId: Long?): CategoryGroup? = groupId?.let {
+        categoryGroupRepository.findById(it)
+            .orElseThrow { IllegalArgumentException("Group $it not found") }
     }
 
     @Transactional

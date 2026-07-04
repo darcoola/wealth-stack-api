@@ -1,11 +1,16 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { Category, CategoryType } from '../../core/category';
+import { Category } from '../../core/category';
+import { CategoryGroup } from '../../core/category-group';
 import { CategoriesService } from '../../core/categories.service';
+import { CategoryGroupsService } from '../../core/category-groups.service';
+
+/** Sentinel select option for a category that belongs to no group. */
+const NONE_GROUP = { label: '— None —', value: null as number | null };
 
 @Component({
   selector: 'app-categories',
@@ -15,18 +20,20 @@ import { CategoriesService } from '../../core/categories.service';
 })
 export class Categories {
   private readonly service = inject(CategoriesService);
+  private readonly groupsService = inject(CategoryGroupsService);
 
   protected readonly categories = signal<Category[]>([]);
+  protected readonly groups = signal<CategoryGroup[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly newName = signal('');
-  protected readonly newType = signal<CategoryType>('SPENDING');
+  protected readonly newGroupId = signal<number | null>(null);
 
-  protected readonly typeOptions: { label: string; value: CategoryType }[] = [
-    { label: 'Spending', value: 'SPENDING' },
-    { label: 'Income', value: 'INCOME' },
-    { label: 'Others', value: 'OTHERS' },
-  ];
+  /** Group picker options: an "— None —" (Ungrouped) entry followed by every group. */
+  protected readonly groupOptions = computed(() => [
+    NONE_GROUP,
+    ...this.groups().map((g) => ({ label: g.name, value: g.id as number | null })),
+  ]);
 
   constructor() {
     this.load();
@@ -35,6 +42,10 @@ export class Categories {
   protected load(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.groupsService.getAll().subscribe({
+      next: (groups) => this.groups.set(groups),
+      error: () => this.error.set('Could not load groups. Is the backend running?'),
+    });
     this.service.getAll().subscribe({
       next: (categories) => {
         this.categories.set(categories);
@@ -53,10 +64,10 @@ export class Categories {
       return;
     }
     this.error.set(null);
-    this.service.create(name, this.newType()).subscribe({
+    this.service.create(name, this.newGroupId()).subscribe({
       next: () => {
         this.newName.set('');
-        this.newType.set('SPENDING');
+        this.newGroupId.set(null);
         this.load();
       },
       error: (err) => this.error.set(this.message(err, `Could not create "${name}".`)),
@@ -69,19 +80,19 @@ export class Categories {
       this.load();
       return;
     }
-    this.update(category, trimmed, category.type);
+    this.update(category, trimmed, category.groupId);
   }
 
-  protected changeType(category: Category, type: CategoryType): void {
-    if (type === category.type) {
+  protected changeGroup(category: Category, groupId: number | null): void {
+    if (groupId === category.groupId) {
       return;
     }
-    this.update(category, category.name, type);
+    this.update(category, category.name, groupId);
   }
 
-  private update(category: Category, name: string, type: CategoryType): void {
+  private update(category: Category, name: string, groupId: number | null): void {
     this.error.set(null);
-    this.service.update(category.id, name, type).subscribe({
+    this.service.update(category.id, name, groupId).subscribe({
       next: () => this.load(),
       error: (err) => {
         this.error.set(this.message(err, `Could not update "${category.name}".`));

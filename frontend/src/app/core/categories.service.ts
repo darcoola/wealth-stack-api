@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Category, CategoryType } from './category';
+import { Category } from './category';
 
 /** CRUD access to the editable category dictionary. Base path is proxied to the backend in dev. */
 @Injectable({ providedIn: 'root' })
@@ -13,12 +13,12 @@ export class CategoriesService {
     return this.http.get<Category[]>(this.baseUrl);
   }
 
-  create(name: string, type: CategoryType): Observable<Category> {
-    return this.http.post<Category>(this.baseUrl, { name, type });
+  create(name: string, groupId: number | null): Observable<Category> {
+    return this.http.post<Category>(this.baseUrl, { name, groupId });
   }
 
-  update(id: number, name: string, type: CategoryType): Observable<Category> {
-    return this.http.put<Category>(`${this.baseUrl}/${id}`, { name, type });
+  update(id: number, name: string, groupId: number | null): Observable<Category> {
+    return this.http.put<Category>(`${this.baseUrl}/${id}`, { name, groupId });
   }
 
   delete(id: number): Observable<void> {

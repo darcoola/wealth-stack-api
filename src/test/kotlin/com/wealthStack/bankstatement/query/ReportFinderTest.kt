@@ -10,9 +10,10 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import com.wealthStack.bankstatement.BankingOperationRepository
+import com.wealthStack.bankstatement.CategoryGroupRepository
+import com.wealthStack.bankstatement.CategoryGroupService
 import com.wealthStack.bankstatement.CategoryRepository
 import com.wealthStack.bankstatement.CategoryService
-import com.wealthStack.bankstatement.CategoryType
 import com.wealthStack.bankstatement.ManualOperation
 import com.wealthStack.bankstatement.ManualOperationsRequest
 import com.wealthStack.bankstatement.StatementImporter
@@ -42,6 +43,9 @@ class ReportFinderTest {
     lateinit var categoryService: CategoryService
 
     @Autowired
+    lateinit var categoryGroupService: CategoryGroupService
+
+    @Autowired
     lateinit var importer: StatementImporter
 
     @Autowired
@@ -49,6 +53,9 @@ class ReportFinderTest {
 
     @Autowired
     lateinit var categoryRepository: CategoryRepository
+
+    @Autowired
+    lateinit var categoryGroupRepository: CategoryGroupRepository
 
     /**
      * Cleans the tables, then seeds a small fixture spanning two months and covering an income row, a
@@ -58,8 +65,11 @@ class ReportFinderTest {
     fun seed() {
         operationRepository.deleteAll()
         categoryRepository.deleteAll()
-        categoryService.create("Salary", CategoryType.INCOME)
-        categoryService.create("Groceries", CategoryType.SPENDING)
+        categoryGroupRepository.deleteAll()
+        val income = categoryGroupService.create("Income")
+        val spending = categoryGroupService.create("Spending")
+        categoryService.create("Salary", income.id)
+        categoryService.create("Groceries", spending.id)
         importer.importOperations(
             ManualOperationsRequest(
                 bankName = "legacy",
@@ -102,20 +112,20 @@ class ReportFinderTest {
     }
 
     @Test
-    fun `each bucket carries its category type so the frontend can split by type`() {
+    fun `each bucket carries its category group so the frontend can split by group`() {
         val rows = reportFinder.categoryMonthlyTotals()
 
-        assertThat(bucket(rows, "2024-01", "Salary").categoryType).isEqualTo(CategoryType.INCOME)
-        assertThat(bucket(rows, "2024-01", "Groceries").categoryType).isEqualTo(CategoryType.SPENDING)
+        assertThat(bucket(rows, "2024-01", "Salary").groupName).isEqualTo("Income")
+        assertThat(bucket(rows, "2024-01", "Groceries").groupName).isEqualTo("Spending")
     }
 
     @Test
-    fun `uncategorized rows land in a null-category, null-type bucket`() {
+    fun `uncategorized rows land in a null-category, null-group bucket`() {
         val rows = reportFinder.categoryMonthlyTotals()
 
         val uncategorized = bucket(rows, "2024-01", null)
         assertThat(uncategorized.categoryId).isNull()
-        assertThat(uncategorized.categoryType).isNull()
+        assertThat(uncategorized.groupId).isNull()
         assertThat(uncategorized.total.stripTrailingZeros()).isEqualTo(value("-50"))
 
         assertThat(bucket(rows, "2024-01", "Salary").categoryId).isNotNull()

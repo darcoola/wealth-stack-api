@@ -11,7 +11,7 @@ export class ReportsService {
 
   /**
    * Per (month, category) totals across all history, summed as-is. The caller splits rows by
-   * `categoryType` into separate spending/income charts.
+   * `groupId` into one chart/table section per group.
    */
   getCategoryMonthlyTotals(): Observable<MonthlyCategoryTotal[]> {
     return this.http.get<MonthlyCategoryTotal[]>(`${this.baseUrl}/category-monthly-totals`);

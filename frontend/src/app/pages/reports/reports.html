@@ -42,7 +42,7 @@
       }
 
       @if (selectedMonths().length) {
-        @for (section of monthlySections(); track section.type) {
+        @for (section of monthlySections(); track section.key) {
           <section class="chart-section">
             <h2 class="chart-title">{{ section.title }}</h2>
             @if (section.hasData) {
@@ -65,7 +65,7 @@
       }
     </p-tabpanel>
 
-    <!-- Yearly: 12 months of a chosen year, one line per category, split by type. -->
+    <!-- Yearly: 12 months of a chosen year, one line per category, split by group. -->
     <p-tabpanel value="yearly">
       <div class="controls">
         <span class="control-label">Year</span>
@@ -78,7 +78,7 @@
       </div>
 
       @if (selectedYear() != null) {
-        @for (section of yearlySections(); track section.type) {
+        @for (section of yearlySections(); track section.key) {
           <section class="chart-section">
             <div class="chart-header">
               <h2 class="chart-title">{{ section.title }}</h2>
@@ -87,8 +87,8 @@
                   [options]="section.categories"
                   optionLabel="label"
                   optionValue="key"
-                  [ngModel]="yearlyKeysFor(section.type)"
-                  (ngModelChange)="setYearlyKeys(section.type, $event)"
+                  [ngModel]="yearlyKeysFor(section.key)"
+                  (ngModelChange)="setYearlyKeys(section.key, $event)"
                   placeholder="Pick categories"
                   [filter]="true"
                   [showToggleAll]="true"
@@ -115,7 +115,7 @@
       }
     </p-tabpanel>
 
-    <!-- Table: a spreadsheet-style pivot per category type — categories × 12 months + Sum. -->
+    <!-- Table: a spreadsheet-style pivot per group — categories × 12 months + Sum. -->
     <p-tabpanel value="table">
       <div class="controls">
         <span class="control-label">Year</span>
@@ -128,7 +128,7 @@
       </div>
 
       @if (selectedYear() != null) {
-        @for (section of summarySections(); track section.type) {
+        @for (section of summarySections(); track section.key) {
           <section class="chart-section">
             <h2 class="chart-title">{{ section.title }}</h2>
             @if (section.hasData) {

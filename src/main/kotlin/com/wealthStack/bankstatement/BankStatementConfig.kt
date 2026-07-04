@@ -11,6 +11,8 @@ import com.wealthStack.bankstatement.query.AccountMappingQueryController
 import com.wealthStack.bankstatement.query.BankingOperationFinder
 import com.wealthStack.bankstatement.query.BankingOperationQueryController
 import com.wealthStack.bankstatement.query.CategoryFinder
+import com.wealthStack.bankstatement.query.CategoryGroupFinder
+import com.wealthStack.bankstatement.query.CategoryGroupQueryController
 import com.wealthStack.bankstatement.query.CategoryQueryController
 import com.wealthStack.bankstatement.query.ReportFinder
 import com.wealthStack.bankstatement.query.ReportQueryController
@@ -66,9 +68,16 @@ class BankStatementConfig {
     @Bean
     fun categoryService(
         categoryRepository: CategoryRepository,
+        categoryGroupRepository: CategoryGroupRepository,
         bankingOperationRepository: BankingOperationRepository,
         autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
-    ): CategoryService = CategoryService(categoryRepository, bankingOperationRepository, autoCategorizationService)
+    ): CategoryService = CategoryService(categoryRepository, categoryGroupRepository, bankingOperationRepository, autoCategorizationService)
+
+    @Bean
+    fun categoryGroupService(
+        categoryGroupRepository: CategoryGroupRepository,
+        categoryRepository: CategoryRepository
+    ): CategoryGroupService = CategoryGroupService(categoryGroupRepository, categoryRepository)
 
     @Bean
     fun bankingOperationFinder(
@@ -86,6 +95,11 @@ class BankStatementConfig {
     ): CategoryFinder = CategoryFinder(repository)
 
     @Bean
+    fun categoryGroupFinder(
+        repository: CategoryGroupRepository
+    ): CategoryGroupFinder = CategoryGroupFinder(repository)
+
+    @Bean
     fun reportFinder(
         repository: BankingOperationRepository
     ): ReportFinder = ReportFinder(repository)
@@ -101,6 +115,10 @@ class BankStatementConfig {
     @Bean
     fun categoryController(service: CategoryService): CategoryController =
         CategoryController(service)
+
+    @Bean
+    fun categoryGroupController(service: CategoryGroupService): CategoryGroupController =
+        CategoryGroupController(service)
 
     @Bean
     fun operationCommandService(
@@ -124,6 +142,10 @@ class BankStatementConfig {
     @Bean
     fun categoryQueryController(finder: CategoryFinder): CategoryQueryController =
         CategoryQueryController(finder)
+
+    @Bean
+    fun categoryGroupQueryController(finder: CategoryGroupFinder): CategoryGroupQueryController =
+        CategoryGroupQueryController(finder)
 
     @Bean
     fun reportQueryController(finder: ReportFinder): ReportQueryController =

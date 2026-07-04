@@ -1,0 +1,36 @@
+.add-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  input {
+    flex: 1;
+    max-width: 24rem;
+  }
+}
+
+.text-right {
+  text-align: right;
+}
+
+.editable-name {
+  cursor: text;
+}
+
+.empty-cell {
+  padding: 2rem;
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--p-red-200);
+  border-radius: var(--p-content-border-radius);
+  background: var(--p-red-50);
+  color: var(--p-red-700);
+}

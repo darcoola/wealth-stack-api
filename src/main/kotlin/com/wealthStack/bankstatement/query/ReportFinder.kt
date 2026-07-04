@@ -9,8 +9,8 @@ open class ReportFinder(
 
     /**
      * Per (month, category) totals across all history, summed as-is (spending negative, income
-     * positive). Each row carries its category type so the frontend can split into separate
-     * spending/income charts.
+     * positive). Each row carries its category's group so the frontend can split into one section
+     * per group.
      */
     open fun categoryMonthlyTotals(): List<MonthlyCategoryTotalDto> =
         repository.aggregateByMonthAndCategory().map { it.toDto() }
@@ -19,7 +19,8 @@ open class ReportFinder(
         month = month,
         categoryId = categoryId,
         category = categoryName,
-        categoryType = categoryType,
+        groupId = groupId,
+        groupName = groupName,
         total = total
     )
 }

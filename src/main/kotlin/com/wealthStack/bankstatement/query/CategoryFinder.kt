@@ -8,5 +8,5 @@ open class CategoryFinder(
 
     open fun findAll(): List<CategoryDto> = repository.findAll()
         .sortedBy { it.name.lowercase() }
-        .map { CategoryDto(id = it.id!!, name = it.name, type = it.type) }
+        .map { CategoryDto(id = it.id!!, name = it.name, groupId = it.group?.id, groupName = it.group?.name) }
 }

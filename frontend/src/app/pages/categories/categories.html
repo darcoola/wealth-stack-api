@@ -17,11 +17,12 @@
     (ngModelChange)="newName.set($event)"
     (keyup.enter)="add()" />
   <p-select
-    [options]="typeOptions"
+    [options]="groupOptions()"
     optionLabel="label"
     optionValue="value"
-    [ngModel]="newType()"
-    (onChange)="newType.set($event.value)"
+    [ngModel]="newGroupId()"
+    (onChange)="newGroupId.set($event.value)"
+    placeholder="Group"
     appendTo="body" />
   <p-button label="Add" icon="pi pi-plus" (onClick)="add()" [disabled]="!newName().trim()" />
 </div>
@@ -36,7 +37,7 @@
   <ng-template pTemplate="header">
     <tr>
       <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-      <th pSortableColumn="type" style="width: 12rem">Type <p-sortIcon field="type" /></th>
+      <th pSortableColumn="groupName" style="width: 14rem">Group <p-sortIcon field="groupName" /></th>
       <th style="width: 6rem"></th>
     </tr>
   </ng-template>
@@ -61,11 +62,11 @@
       </td>
       <td>
         <p-select
-          [options]="typeOptions"
+          [options]="groupOptions()"
           optionLabel="label"
           optionValue="value"
-          [ngModel]="category.type"
-          (onChange)="changeType(category, $event.value)"
+          [ngModel]="category.groupId"
+          (onChange)="changeGroup(category, $event.value)"
           appendTo="body" />
       </td>
       <td class="text-right">

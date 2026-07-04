@@ -18,6 +18,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/categories/categories').then((m) => m.Categories),
   },
   {
+    path: 'groups',
+    title: 'Groups · WealthStack',
+    loadComponent: () => import('./pages/category-groups/category-groups').then((m) => m.CategoryGroups),
+  },
+  {
     path: 'import',
     title: 'Import · WealthStack',
     loadComponent: () => import('./pages/import/import').then((m) => m.Import),

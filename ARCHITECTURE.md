@@ -41,7 +41,7 @@ Run `./gradlew bootRun` (backend on :8088) alongside it. For a backend-only buil
 
 ## Domain model
 
-Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
+Four JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 
 - **`BankingOperation`** (`banking_operations`) — one bank transaction. Fields: `date`,
   `description`, `amount` (BigDecimal 19,2), `type` (`OperationType` CREDIT/DEBIT, derived from
@@ -55,12 +55,17 @@ Three JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
   see below). Unique constraint on `(fingerprint, occurrence)`.
 - **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
   Editing a mapping back-fills `accountDisplayName` on all existing operations with that account.
-- **`Category`** (`categories`) — an editable dictionary entry with a unique `name` and a `type`
-  (`CategoryType`: `SPENDING` | `INCOME` | `OTHERS`, string-enum column, default `SPENDING`). The type drives
-  reporting: totals are summed as-is (no debit/credit split) and charts split by type, not amount
-  sign. Fully user-curated (create / rename / retype / delete) via `CategoryService`; operations point at one by FK.
-  Deleting a category in use first un-assigns it from its operations (FK → null). Shaped to later
-  grow a `parentId` for subcategories.
+- **`Category`** (`categories`) — an editable dictionary entry with a unique `name` and a nullable
+  `group` (`@ManyToOne` FK to `CategoryGroup`, null = Ungrouped). The group drives reporting: totals
+  are summed as-is (no debit/credit split) and charts/tables split into one section per group, not
+  by amount sign. Fully user-curated (create / rename / regroup / delete) via `CategoryService`;
+  operations point at a category by FK. Deleting a category in use first un-assigns it from its
+  operations (FK → null). Shaped to later grow a `parentId` for subcategories.
+- **`CategoryGroup`** (`category_groups`) — a user-managed grouping categories are bucketed into,
+  with a unique `name`. Replaced the old fixed `CategoryType` enum (spending/income/others), which
+  survives only as three editable seed groups. Fully user-curated (create / rename / delete) via
+  `CategoryGroupService`; deleting a group in use first un-assigns it from its categories (FK →
+  null, back to Ungrouped).
 
 `OperationType` is `CREDIT`/`DEBIT`. Amount sign drives the type (≥0 = CREDIT).
 
@@ -74,7 +79,9 @@ added the `categories` table and replaced `banking_operations.category` (a strin
 `category_id` FK (old values discarded — operations start Uncategorized). `V5` added report indices
 on `banking_operations (date)` and `(category_id)`. `V6` added `categories.type`
 (spending/income; existing rows backfilled `SPENDING`). `V7` added the nullable
-`banking_operations.additional_info` free-text note.
+`banking_operations.additional_info` free-text note. `V8` added `banking_operations.needs_verification`.
+`V9` added the `category_groups` table (seeded Spending/Income/Others), replaced `categories.type`
+with a nullable `group_id` FK (backfilled from the old type), and indexed `categories (group_id)`.
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -147,10 +154,14 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   mapping's `rawAccount`) clears it on the orphaned operations so they revert to the raw account.
 
 ### Category flow (command side)
-- `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create (`{ name, type? }`,
-  type defaults `SPENDING`), `PUT /{id}` update name + type (`{ name, type? }`; omitting `type`
-  keeps it — `rename` delegates here), `DELETE /{id}` delete (un-assigns from operations first).
-  Names are unique.
+- `CategoryController` (`/api/v1/categories`) → `CategoryService`: `POST` create (`{ name, groupId? }`,
+  group defaults null = Ungrouped), `PUT /{id}` update name + group (`{ name, groupId? }`; the
+  controller always sets the group via `SetGroup`, so it can also clear it to null; internal
+  `rename` uses `KeepGroup` to leave it untouched), `DELETE /{id}` delete (un-assigns from
+  operations first). Names are unique.
+- `CategoryGroupController` (`/api/v1/category-groups`) → `CategoryGroupService`: `POST` create
+  (`{ name }`), `PUT /{id}` rename (`{ name }`), `DELETE /{id}` delete (un-assigns from categories
+  first, back to Ungrouped). Names are unique.
 - `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/category`
   (`{ "categoryId": Long? }`) → `CategoryService.assignToOperation` — assign or, with `null`, clear.
 - `OperationCommandController` `PUT /api/v1/bank-statements/operations/{id}/additional-info`
@@ -166,14 +177,18 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   (includes `id`, `additionalInfo`, `categoryId`, and the category `name`).
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
   (id + rawAccount + displayName), sorted by display name.
-- `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto` (id + name + type).
+- `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto`
+  (id + name + groupId + groupName), sorted by name.
+- `CategoryGroupQueryController` `GET /api/v1/category-groups` → all groups as `CategoryGroupDto`
+  (id + name), sorted by name.
 - `ReportQueryController` `GET /api/v1/reports/category-monthly-totals`
   → `MonthlyCategoryTotalDto` list (one per `(month, category)` bucket, `month` = `YYYY-MM`,
-  `categoryType` = the category's type or null for Uncategorized, `total` = signed `SUM(amount)`
-  as-is). `ReportFinder` just maps one aggregation query
+  `groupId`/`groupName` = the category's group or null for Ungrouped/Uncategorized, `total` = signed
+  `SUM(amount)` as-is). `ReportFinder` just maps one aggregation query
   (`BankingOperationRepository.aggregateByMonthAndCategory`, the only `@Query`/GROUP BY in the code;
-  `LEFT JOIN` keeps Uncategorized). No mode param — the frontend splits rows by `categoryType`
-  into separate spending/income charts and filters/pivots client-side.
+  `LEFT JOIN` keeps Uncategorized rows and Ungrouped categories). No mode param — the frontend splits
+  rows by `groupId` into one section per group (Ungrouped/Uncategorized folded together) and
+  filters/pivots client-side.
 - `BankingOperation.toDto()` lives in `query/BankingOperationFinder.kt`; DTOs in `query/Dtos.kt`.
 
 ## Parsers
@@ -227,16 +242,20 @@ frontend/
 ```
 
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
-**Import**, **Accounts**, **Reports**. The Operations table assigns a category per row via an
-inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text **Info** note per row
-via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the Categories page is the dictionary CRUD
-(`core/categories.service.ts`) — each row's spending/income `type` is editable via an inline
-`p-select`, and the add-row sets the new category's type. The **Reports** page (`pages/reports/`,
+**Groups**, **Import**, **Accounts**, **Reports**. The Operations table assigns a category per row
+via an inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text **Info** note
+per row via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the
+Categories page is the dictionary CRUD (`core/categories.service.ts`) — each row's **group** is
+editable via an inline `p-select` (options from `core/category-groups.service.ts`, plus a "— None —"
+Ungrouped entry), and the add-row sets the new category's group. The **Groups** page
+(`pages/category-groups/`, `core/category-groups.service.ts`) is the group-dictionary CRUD
+(add / rename inline / delete, mirroring Categories). The **Reports** page (`pages/reports/`,
 `core/reports.service.ts`) has Monthly/Yearly/Table tabs (`primeng/tabs`); Monthly & Yearly render
 `p-chart` (`primeng/chart`, needs the `chart.js` peer dep), Table renders a `p-table` pivot. Each
-tab renders one view **per category type** (Spending, Income, Others — rows split client-side by
-`categoryType`, Uncategorized folded into Others): Monthly = grouped bar (categories on X, one bar
-per picked month), Yearly = line (12 months of a chosen year, one line per category), Table = a
+tab renders one view **per group present in the data** (derived client-side from `groupId`, sorted
+by name, with an **Ungrouped** section last that also absorbs Uncategorized rows): Monthly = grouped
+bar (categories on X, one bar per picked month), Yearly = line (12 months of a chosen year, one line
+per category), Table = a
 spreadsheet-style pivot for a chosen year (category rows × 12 month columns + a right-hand **Sum**
 column, plus a bottom **Total** row; frozen first column, negatives in the danger colour, rows
 sorted by magnitude). Totals are shown as-is (spending negative, income positive); an inline
