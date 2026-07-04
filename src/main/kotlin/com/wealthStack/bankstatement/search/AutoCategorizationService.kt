@@ -58,18 +58,14 @@ open class AutoCategorizationService(
             return null
         }
 
-        // Extract the unique categories from the top hits
-        val distinctCategoryIds = searchHits.searchHits
-            .map { it.content.categoryId }
-            .distinct()
+        // Pick the category that appears most often among the top hits (majority vote).
+        val predictedCategoryId = searchHits.searchHits
+            .groupingBy { it.content.categoryId }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key
+            ?: return null
 
-        // "use category field if single category was find, dont set category if there is nothing found or multiple matches"
-        if (distinctCategoryIds.size == 1) {
-            val predictedCategoryId = distinctCategoryIds.first()
-            return categoryRepository.findById(predictedCategoryId).orElse(null)
-        }
-
-        // Multiple conflicting matches found, so we do not auto-categorize
-        return null
+        return categoryRepository.findById(predictedCategoryId).orElse(null)
     }
 }
