@@ -4,25 +4,41 @@
   gap: 1rem;
 }
 
-.table-caption-top {
+.filter-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.5rem 0.75rem;
 }
 
-.table-caption-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+// Pushes the reload button (and anything after it) to the far right.
+.filter-spacer {
+  flex: 1 1 auto;
 }
 
-.filters {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.filter-search {
+  flex: 0 1 16rem;
+  min-width: 10rem;
+
+  input {
+    width: 100%;
+  }
+}
+
+// Consistent sizing for the date-span, account, and group controls so the bar reads as one row
+// of equal-weight filters instead of a jumble of widths.
+.filter-control {
+  flex: 0 1 12rem;
+  min-width: 9rem;
+
+  ::ng-deep .p-datepicker,
+  ::ng-deep .p-multiselect {
+    width: 100%;
+  }
+}
+
+.filter-control--date {
+  flex-basis: 14rem;
 }
 
 .toggle-group {

@@ -53,7 +53,9 @@ Four JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
   excluded from the fingerprint), `sourceFileName?` (provenance; nullable — absent for
   manual/JSON rows with no source), `fingerprint` + `occurrence` (duplicate-detection identity —
   see below). Unique constraint on `(fingerprint, occurrence)`.
-- **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`.
+- **`AccountMapping`** (`account_mappings`) — maps a unique `rawAccount` → `displayName`. Every
+  operation is connected to one: an import **auto-creates** a mapping for any raw account it hasn't
+  seen, defaulting `displayName` to the raw account (the user renames it later on the Accounts page).
   Editing a mapping back-fills `accountDisplayName` on all existing operations with that account.
 - **`Category`** (`categories`) — an editable dictionary entry with a unique `name` and a nullable
   `group` (`@ManyToOne` FK to `CategoryGroup`, null = Ungrouped). The group drives reporting: totals
@@ -113,7 +115,9 @@ as a `List<StatementParser>`. When you add a service/controller/parser, register
    each parser's `canParse(content)`. Exactly one match wins; **no match or an ambiguous
    multi-match throws `IllegalArgumentException` → HTTP 400** (the user then names the bank).
 3. Parser decodes bytes with its own `charset` and returns `List<BankingOperation>`.
-4. Importer applies known account mappings to set `accountDisplayName`, and resolves a category for any row
+4. Importer applies account mappings to set `accountDisplayName` — **auto-creating** a mapping
+   (`displayName` = raw account) for any account without one, so every row is connected to a
+   mapping — and resolves a category for any row
    that names one (manual imports only — see below); rows from raw bank parsers carry no category and
    start Uncategorized for the user to classify later.
 5. Importer assigns each operation a `fingerprint` + `occurrence` (duplicate detection) and
@@ -176,8 +180,13 @@ constraint on `(fingerprint, occurrence)` guarantees no duplicates slip in.
   backs the Administration page's "Remove all operations").
 
 ### Read side (query package)
-- `BankingOperationQueryController` `GET /api/v1/bank-statements` → all operations as `OperationDto`
-  (includes `id`, `additionalInfo`, `categoryId`, and the category `name`).
+- `BankingOperationQueryController` `GET /api/v1/bank-statements` → paginated operations as
+  `OperationDto` (includes `id`, `additionalInfo`, `categoryId`, and the category `name`). Optional
+  filters (built into a JPA `Specification` in `BankingOperationFinder`): `globalFilter` (substring
+  over description/info/account/category), `needsVerificationOnly`, `uncategorizedOnly`, `accounts`
+  (raw-account multiselect) OR-ed with `unmappedAccount` (the "(No account)" option → null
+  `accountDisplayName`), `groupIds` (category-group multiselect), and a `dateFrom`/`dateTo`
+  inclusive date span.
 - `AccountMappingQueryController` `GET /api/v1/account-mappings` → all mappings as `AccountMappingDto`
   (id + rawAccount + displayName), sorted by display name.
 - `CategoryQueryController` `GET /api/v1/categories` → all categories as `CategoryDto`
@@ -246,7 +255,11 @@ frontend/
 ```
 
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
-**Groups**, **Import**, **Accounts**, **Reports**. The Operations table assigns a category per row
+**Groups**, **Import**, **Accounts**, **Reports**, **Administration** (maintenance actions — today a
+"Remove all operations" danger-zone button hitting `DELETE .../operations/all`). The Operations table has a server-side filter bar
+(global search, a date-span range picker, and prefetched **account** and **category-group**
+multiselects — options pulled from the account-mappings and category-groups endpoints); it assigns a
+category per row
 via an inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text **Info** note
 per row via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the
 Categories page is the dictionary CRUD (`core/categories.service.ts`) — each row's **group** is

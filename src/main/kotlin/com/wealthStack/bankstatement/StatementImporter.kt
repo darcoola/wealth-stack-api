@@ -91,9 +91,25 @@ open class StatementImporter(
         )
     }
 
+    /**
+     * Ensures every imported operation is connected to an [AccountMapping]. Existing mappings are
+     * applied as before; any raw account seen in this batch that has no mapping yet gets one created
+     * on the fly with its display name defaulting to the raw account (the user can rename it later on
+     * the Accounts page). The denormalized [BankingOperation.accountDisplayName] is then set from the
+     * mapping for every operation.
+     */
     private fun applyAccountMappings(operations: List<BankingOperation>) {
-        val mappings = accountMappingRepository.findAll().associate { it.rawAccount to it.displayName }
-        operations.forEach { op -> mappings[op.account]?.let { op.accountDisplayName = it } }
+        val mappings = accountMappingRepository.findAll()
+            .associateByTo(HashMap()) { it.rawAccount }
+
+        val missing = operations.map { it.account }.toSet().filter { it !in mappings }
+        if (missing.isNotEmpty()) {
+            accountMappingRepository
+                .saveAll(missing.map { AccountMapping(rawAccount = it, displayName = it) })
+                .forEach { mappings[it.rawAccount] = it }
+        }
+
+        operations.forEach { op -> mappings[op.account]?.let { op.accountDisplayName = it.displayName } }
     }
 
     /**

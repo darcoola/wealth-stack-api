@@ -79,6 +79,14 @@ class AccountMappingTest {
      * `{ content: [...], page: {...} }`), not a bare array, so pull the rows out of `content`. A
      * large page size keeps this a "fetch all operations" helper.
      */
+    /** Looks up the id of the (possibly auto-created) mapping for a raw account. */
+    private fun mappingId(rawAccount: String): Long {
+        val body = rest.getForEntity("${baseUrl()}/api/v1/account-mappings", List::class.java).body!!
+        return body.filterIsInstance<Map<*, *>>()
+            .first { it["rawAccount"] == rawAccount }["id"]
+            .let { (it as Number).toLong() }
+    }
+
     private fun fetchOperations(): List<Map<*, *>> {
         val body = rest.getForEntity(
             "${baseUrl()}/api/v1/bank-statements?size=2000",
@@ -103,29 +111,52 @@ class AccountMappingTest {
     }
 
     @Test
-    fun `creating a mapping retroactively updates existing operations`() {
-        // Import first — operations will have no accountDisplayName
+    fun `import auto-creates a mapping for unmapped accounts, defaulting the name to the raw account`() {
+        // No mapping exists up front; the import must connect every operation to one.
         importMbankStatement()
 
-        createMapping("mKonto Intensive 5611 ... 1026", "mBank Retroactive")
+        val ops = fetchOperations()
+        // display name defaults to the raw account
+        assertThat(ops.map { it["accountDisplayName"] }.distinct()).each {
+            it.isEqualTo("mKonto Intensive 5611 ... 1026")
+        }
+
+        val mappings = rest.getForEntity("${baseUrl()}/api/v1/account-mappings", List::class.java)
+            .body!!.filterIsInstance<Map<*, *>>()
+            .filter { it["rawAccount"] == "mKonto Intensive 5611 ... 1026" }
+        assertThat(mappings.size).isEqualTo(1)
+        assertThat(mappings[0]["displayName"]).isEqualTo("mKonto Intensive 5611 ... 1026")
+    }
+
+    @Test
+    fun `editing the auto-created mapping updates existing operations`() {
+        importMbankStatement()
+
+        val id = mappingId("mKonto Intensive 5611 ... 1026")
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        rest.exchange(
+            "${baseUrl()}/api/v1/account-mappings/$id",
+            HttpMethod.PUT,
+            HttpEntity(AccountMappingRequest("mKonto Intensive 5611 ... 1026", "mBank Retroactive"), headers),
+            Map::class.java
+        )
 
         val ops = fetchOperations()
-        val displayNames = ops.map { it["accountDisplayName"] }.distinct()
-        assertThat(displayNames).each {
+        assertThat(ops.map { it["accountDisplayName"] }.distinct()).each {
             it.isEqualTo("mBank Retroactive")
         }
         // raw account untouched
-        val accounts = ops.map { it["account"] }.distinct()
-        assertThat(accounts).each {
+        assertThat(ops.map { it["account"] }.distinct()).each {
             it.isEqualTo("mKonto Intensive 5611 ... 1026")
         }
     }
 
     @Test
     fun `update changes an existing mapping by id and re-applies the new name`() {
+        createMapping("mKonto Intensive 5611 ... 1026", "Name V1")
         importMbankStatement()
-        val created = createMapping("mKonto Intensive 5611 ... 1026", "Name V1")
-        val id = (created["id"] as Number).toLong()
+        val id = mappingId("mKonto Intensive 5611 ... 1026")
 
         val headers = HttpHeaders()
         headers.contentType = MediaType.APPLICATION_JSON
@@ -148,8 +179,7 @@ class AccountMappingTest {
     @Test
     fun `delete removes the mapping and reverts operations to the raw account`() {
         importMbankStatement()
-        val created = createMapping("mKonto Intensive 5611 ... 1026", "mBank ROR")
-        val id = (created["id"] as Number).toLong()
+        val id = mappingId("mKonto Intensive 5611 ... 1026")
 
         rest.delete("${baseUrl()}/api/v1/account-mappings/$id")
 

@@ -28,37 +28,74 @@
   [showCurrentPageReport]="true">
   <ng-template pTemplate="caption">
     <div class="table-caption">
-      <div class="table-caption-top">
-        <div class="table-caption-left">
-          <p-iconfield>
-            <p-inputicon styleClass="pi pi-search" />
-            <input
-              pInputText
-              type="text"
-              placeholder="Search operations"
-              (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
-          </p-iconfield>
-          
-          <div class="filters">
-            <p-datepicker
-              [ngModel]="selectedMonthDate()"
-              (ngModelChange)="selectedMonthDate.set($event); onFilterChange()"
-              view="month"
-              dateFormat="M yy"
-              [showClear]="true"
-              [readonlyInput]="true"
-              placeholder="Month"
-              appendTo="body" />
-            
-            <p-selectbutton
-              [options]="quickFilterOptions()"
-              [ngModel]="quickFilter()"
-              (ngModelChange)="quickFilter.set($event); onFilterChange()"
-              optionLabel="label"
-              optionValue="value"
-              [allowEmpty]="false" />
-          </div>
-        </div>
+      <div class="filter-bar">
+        <p-iconfield class="filter-search">
+          <p-inputicon styleClass="pi pi-search" />
+          <input
+            pInputText
+            type="text"
+            placeholder="Search"
+            [value]="search()"
+            (input)="search.set($any($event.target).value); dt.filterGlobal($any($event.target).value, 'contains')" />
+        </p-iconfield>
+
+        <p-datepicker
+          class="filter-control filter-control--date"
+          [ngModel]="dateRange()"
+          (ngModelChange)="dateRange.set($event); onFilterChange()"
+          selectionMode="range"
+          dateFormat="yy-mm-dd"
+          [showClear]="true"
+          [readonlyInput]="true"
+          placeholder="Date span"
+          appendTo="body" />
+
+        <p-multiselect
+          class="filter-control"
+          [options]="accountOptions()"
+          [ngModel]="selectedAccounts()"
+          (ngModelChange)="selectedAccounts.set($event ?? []); onFilterChange()"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Accounts"
+          [filter]="true"
+          [showClear]="true"
+          [maxSelectedLabels]="1"
+          selectedItemsLabel="{0} accounts"
+          appendTo="body" />
+
+        <p-multiselect
+          class="filter-control"
+          [options]="groupOptions()"
+          [ngModel]="selectedGroupIds()"
+          (ngModelChange)="selectedGroupIds.set($event ?? []); onFilterChange()"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Groups"
+          [showClear]="true"
+          [maxSelectedLabels]="1"
+          selectedItemsLabel="{0} groups"
+          appendTo="body" />
+
+        <p-selectbutton
+          [options]="quickFilterOptions()"
+          [ngModel]="quickFilter()"
+          (ngModelChange)="quickFilter.set($event); onFilterChange()"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false" />
+
+        @if (hasActiveFilters()) {
+          <p-button
+            label="Clear"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            [text]="true"
+            pTooltip="Clear all filters"
+            (onClick)="clearFilters(dt)" />
+        }
+
+        <span class="filter-spacer"></span>
 
         <p-button
           icon="pi pi-refresh"
