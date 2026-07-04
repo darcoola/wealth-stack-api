@@ -42,7 +42,10 @@ class PkoBpCsvParser : StatementParser {
         val fields = parseCsvLine(line)
         require(fields.size >= 6) { "Invalid PKO BP CSV line: expected at least 6 fields" }
 
-        val date = LocalDate.parse(fields[0].trim())
+        // Use "Data waluty" (value date, field[1]) rather than "Data operacji" (field[0]): the
+        // operation date can shift between statement generations for the same transaction, whereas
+        // the value date is stable.
+        val date = LocalDate.parse(fields[1].trim())
         // field[2] ("Typ transakcji") is the bank's own transaction type; intentionally ignored —
         // categories are now a user-curated dictionary, not bank-derived (imports start Uncategorized).
         val amount = parseAmount(fields[3])

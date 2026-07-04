@@ -204,8 +204,9 @@ schema's required column names.
   `#Data operacji;` header line; amounts use Polish format (comma decimal, ` PLN` suffix).
 - **`PkoBpCsvParser`** (`bankName="pkobp"`, **windows-1250**): comma-separated, every field
   quoted, quote-aware splitter (commas can appear inside quoted fields). Data starts after the
-  `Data operacji` header; description spans trailing columns; `account` extracted from
-  `Numer karty:` / `Rachunek nadawcy:` labels.
+  `Data operacji` header; `date` comes from the **value date** (`Data waluty`, 2nd column), not the
+  operation date, which can shift between statement generations; description spans trailing columns;
+  `account` extracted from `Numer karty:` / `Rachunek nadawcy:` labels.
 - **`RevolutCsvParser`** (`bankName="revolut"`, UTF-8): comma-separated, quote-aware (fields quoted
   only when they contain a comma). Columns: `Rodzaj, Produkt, Data rozpoczęcia, Data zrealizowania,
   Opis, Kwota, Opłata, Waluta, State, Saldo`. Date from the `Data rozpoczęcia` (started) timestamp's

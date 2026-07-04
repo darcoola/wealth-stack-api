@@ -42,6 +42,13 @@ class PkoBpCsvParserTest {
     }
 
     @Test
+    fun `uses value date rather than operation date`() {
+        val operations = parser.parse(loadTestCsv(), "test.csv")
+        // Row 4: "Data operacji" = 2026-05-02, "Data waluty" = 2026-04-30 — the value date wins.
+        assertThat(operations[3].date).isEqualTo(LocalDate.of(2026, 4, 30))
+    }
+
+    @Test
     fun `parses negative amount as DEBIT`() {
         val operations = parser.parse(loadTestCsv(), "test.csv")
         assertThat(operations[0].amount).isEqualTo(BigDecimal("-50.01"))
