@@ -67,3 +67,10 @@
   overflow: auto;
   padding: 1.5rem;
 }
+
+// Highlights the currently active party in the user menu (menu renders in an overlay,
+// so the rule must be global-ish via ::ng-deep on the appended-to-body panel).
+::ng-deep .active-party > .p-menu-item-content {
+  font-weight: 600;
+  color: var(--p-primary-color);
+}

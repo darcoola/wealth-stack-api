@@ -1,5 +1,6 @@
 package com.wealthStack.bankstatement
 
+import com.wealthStack.security.PartyContext
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -7,15 +8,15 @@ import org.springframework.web.bind.annotation.*
 class CategoryGroupController(val service: CategoryGroupService) {
 
     @PostMapping
-    fun create(@RequestBody request: CategoryGroupRequest): CategoryGroup =
-        service.create(request.name)
+    fun create(ctx: PartyContext, @RequestBody request: CategoryGroupRequest): CategoryGroup =
+        service.create(ctx.partyId, request.name)
 
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @RequestBody request: CategoryGroupRequest): CategoryGroup =
-        service.rename(id, request.name)
+    fun update(ctx: PartyContext, @PathVariable id: Long, @RequestBody request: CategoryGroupRequest): CategoryGroup =
+        service.rename(ctx.partyId, id, request.name)
 
     @DeleteMapping("/{id}")
-    fun delete(@PathVariable id: Long) = service.delete(id)
+    fun delete(ctx: PartyContext, @PathVariable id: Long) = service.delete(ctx.partyId, id)
 }
 
 data class CategoryGroupRequest(val name: String)

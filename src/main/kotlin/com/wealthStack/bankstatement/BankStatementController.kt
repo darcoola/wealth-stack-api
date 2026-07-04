@@ -1,5 +1,6 @@
 package com.wealthStack.bankstatement
 
+import com.wealthStack.security.PartyContext
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
@@ -15,11 +16,13 @@ class BankStatementController(val importer: StatementImporter) {
 
     @PostMapping
     fun uploadStatement(
+        ctx: PartyContext,
         @RequestParam("file") file: MultipartFile,
         @RequestParam("bankName", required = false) bankName: String?
     ): ResponseEntity<Any> {
         return try {
-            val result: ImportResult = importer.importStatement(bankName, file.originalFilename ?: "unknown", file.bytes)
+            val result: ImportResult =
+                importer.importStatement(ctx.partyId, bankName, file.originalFilename ?: "unknown", file.bytes)
             ResponseEntity.ok(result)
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
@@ -30,9 +33,9 @@ class BankStatementController(val importer: StatementImporter) {
 
     /** Ingests already-prepared operation rows as JSON (historical data or unparsed banks). */
     @PostMapping("/operations", consumes = [MediaType.APPLICATION_JSON_VALUE])
-    fun importOperations(@RequestBody request: ManualOperationsRequest): ResponseEntity<Any> {
+    fun importOperations(ctx: PartyContext, @RequestBody request: ManualOperationsRequest): ResponseEntity<Any> {
         return try {
-            ResponseEntity.ok(importer.importOperations(request))
+            ResponseEntity.ok(importer.importOperations(ctx.partyId, request))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {

@@ -5,9 +5,12 @@ import com.wealthStack.bankstatement.search.AutoCategorizationService
 
 /**
  * Command side of the category dictionary: create, rename, delete entries, and assign/unassign a
- * category to a single operation. Names are unique (trimmed, case-sensitive). Deleting a category
- * that is in use first un-assigns it from every operation (back to Uncategorized) so the foreign
- * key never blocks the delete.
+ * category to a single operation. Names are unique per party (trimmed, case-sensitive). Deleting a
+ * category that is in use first un-assigns it from every operation (back to Uncategorized) so the
+ * foreign key never blocks the delete.
+ *
+ * Every method takes the acting party first and treats another party's entities as nonexistent
+ * ("not found"), so ids leaked across parties reveal nothing.
  */
 /**
  * Whether a category update should change the group. [KeepGroup] leaves it untouched (used by
@@ -26,44 +29,45 @@ open class CategoryService(
 ) {
 
     @Transactional
-    open fun create(name: String, groupId: Long? = null): Category {
+    open fun create(partyId: Long, name: String, groupId: Long? = null): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
-        require(categoryRepository.findByName(trimmed) == null) { "Category '$trimmed' already exists" }
-        return categoryRepository.save(Category(trimmed, resolveGroup(groupId)))
+        require(categoryRepository.findByPartyIdAndName(partyId, trimmed) == null) {
+            "Category '$trimmed' already exists"
+        }
+        return categoryRepository.save(Category(trimmed, resolveGroup(partyId, groupId), partyId))
     }
 
     @Transactional
-    open fun createAll(categories: List<Pair<String, Long?>>): List<Category> {
-        return categories.map { (name, groupId) -> create(name, groupId) }
+    open fun createAll(partyId: Long, categories: List<Pair<String, Long?>>): List<Category> {
+        return categories.map { (name, groupId) -> create(partyId, name, groupId) }
     }
 
     @Transactional
-    open fun rename(id: Long, name: String): Category = update(id, name, KeepGroup)
+    open fun rename(partyId: Long, id: Long, name: String): Category = update(partyId, id, name, KeepGroup)
 
     /** Updates the name and, when [group] is a [SetGroup], the group a category belongs to. */
     @Transactional
-    open fun update(id: Long, name: String, group: GroupChange): Category {
+    open fun update(partyId: Long, id: Long, name: String, group: GroupChange): Category {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name must not be blank" }
-        val category = categoryRepository.findById(id)
-            .orElseThrow { IllegalArgumentException("Category $id not found") }
-        val clash = categoryRepository.findByName(trimmed)
+        val category = findOwned(partyId, id)
+        val clash = categoryRepository.findByPartyIdAndName(partyId, trimmed)
         require(clash == null || clash.id == id) { "Category '$trimmed' already exists" }
         category.name = trimmed
-        if (group is SetGroup) category.group = resolveGroup(group.groupId)
+        if (group is SetGroup) category.group = resolveGroup(partyId, group.groupId)
         return categoryRepository.save(category)
     }
 
-    private fun resolveGroup(groupId: Long?): CategoryGroup? = groupId?.let {
-        categoryGroupRepository.findById(it)
-            .orElseThrow { IllegalArgumentException("Group $it not found") }
+    private fun resolveGroup(partyId: Long, groupId: Long?): CategoryGroup? = groupId?.let { id ->
+        categoryGroupRepository.findById(id)
+            .filter { it.partyId == partyId }
+            .orElseThrow { IllegalArgumentException("Group $id not found") }
     }
 
     @Transactional
-    open fun delete(id: Long) {
-        val category = categoryRepository.findById(id)
-            .orElseThrow { IllegalArgumentException("Category $id not found") }
+    open fun delete(partyId: Long, id: Long) {
+        val category = findOwned(partyId, id)
         val affected = bankingOperationRepository.findAllByCategory(category)
         affected.forEach { it.category = null }
         bankingOperationRepository.saveAll(affected)
@@ -72,13 +76,9 @@ open class CategoryService(
 
     /** Assigns [categoryId] to the operation, or clears it (back to Uncategorized) when null. */
     @Transactional
-    open fun assignToOperation(operationId: Long, categoryId: Long?): BankingOperation {
-        val operation = bankingOperationRepository.findById(operationId)
-            .orElseThrow { IllegalArgumentException("Operation $operationId not found") }
-        operation.category = categoryId?.let {
-            categoryRepository.findById(it)
-                .orElseThrow { IllegalArgumentException("Category $it not found") }
-        }
+    open fun assignToOperation(partyId: Long, operationId: Long, categoryId: Long?): BankingOperation {
+        val operation = findOwnedOperation(partyId, operationId)
+        operation.category = categoryId?.let { findOwned(partyId, it) }
         operation.needsVerification = false
         val saved = bankingOperationRepository.save(operation)
         if (saved.category != null) {
@@ -89,14 +89,11 @@ open class CategoryService(
 
     /** Assigns [categoryId] to every given operation, or clears it (Uncategorized) when null. */
     @Transactional
-    open fun assignToOperations(operationIds: List<Long>, categoryId: Long?): List<BankingOperation> {
-        val category = categoryId?.let {
-            categoryRepository.findById(it)
-                .orElseThrow { IllegalArgumentException("Category $it not found") }
-        }
-        val operations = bankingOperationRepository.findAllById(operationIds)
-        operations.forEach { 
-            it.category = category 
+    open fun assignToOperations(partyId: Long, operationIds: List<Long>, categoryId: Long?): List<BankingOperation> {
+        val category = categoryId?.let { findOwned(partyId, it) }
+        val operations = findOwnedOperations(partyId, operationIds)
+        operations.forEach {
+            it.category = category
             it.needsVerification = false
         }
         val saved = bankingOperationRepository.saveAll(operations).toList()
@@ -107,27 +104,44 @@ open class CategoryService(
     }
 
     @Transactional
-    open fun acceptPrediction(operationId: Long): BankingOperation {
-        val operation = bankingOperationRepository.findById(operationId)
-            .orElseThrow { IllegalArgumentException("Operation $operationId not found") }
+    open fun acceptPrediction(partyId: Long, operationId: Long): BankingOperation {
+        val operation = findOwnedOperation(partyId, operationId)
         operation.needsVerification = false
         return bankingOperationRepository.save(operation)
     }
 
     @Transactional
-    open fun acceptPredictions(operationIds: List<Long>): List<BankingOperation> {
-        val operations = bankingOperationRepository.findAllById(operationIds)
+    open fun acceptPredictions(partyId: Long, operationIds: List<Long>): List<BankingOperation> {
+        val operations = findOwnedOperations(partyId, operationIds)
         operations.forEach { it.needsVerification = false }
         return bankingOperationRepository.saveAll(operations).toList()
     }
 
-    /** Indexes all already-categorized operations into Elasticsearch to train the auto-categorization. */
+    /** Indexes the party's already-categorized operations into Elasticsearch to train the auto-categorization. */
     @Transactional(readOnly = true)
-    open fun syncCategorizedOperationsToSearch(): Int {
-        val categorized = bankingOperationRepository.findAll().filter { it.category != null }
+    open fun syncCategorizedOperationsToSearch(partyId: Long): Int {
+        val categorized = bankingOperationRepository.findAllByPartyId(partyId).filter { it.category != null }
         if (categorized.isNotEmpty()) {
             autoCategorizationService.indexOperations(categorized)
         }
         return categorized.size
+    }
+
+    private fun findOwned(partyId: Long, id: Long): Category =
+        categoryRepository.findById(id)
+            .filter { it.partyId == partyId }
+            .orElseThrow { IllegalArgumentException("Category $id not found") }
+
+    private fun findOwnedOperation(partyId: Long, id: Long): BankingOperation =
+        bankingOperationRepository.findById(id)
+            .filter { it.partyId == partyId }
+            .orElseThrow { IllegalArgumentException("Operation $id not found") }
+
+    private fun findOwnedOperations(partyId: Long, ids: List<Long>): List<BankingOperation> {
+        val operations = bankingOperationRepository.findAllById(ids)
+        operations.forEach {
+            require(it.partyId == partyId) { "Operation ${it.id} not found" }
+        }
+        return operations
     }
 }

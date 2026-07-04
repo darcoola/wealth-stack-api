@@ -8,12 +8,12 @@ open class ReportFinder(
 ) {
 
     /**
-     * Per (month, category) totals across all history, summed as-is (spending negative, income
-     * positive). Each row carries its category's group so the frontend can split into one section
-     * per group.
+     * Per (month, category) totals across the party's whole history, summed as-is (spending
+     * negative, income positive). Each row carries its category's group so the frontend can split
+     * into one section per group.
      */
-    open fun categoryMonthlyTotals(): List<MonthlyCategoryTotalDto> =
-        repository.aggregateByMonthAndCategory().map { it.toDto() }
+    open fun categoryMonthlyTotals(partyId: Long): List<MonthlyCategoryTotalDto> =
+        repository.aggregateByMonthAndCategory(partyId).map { it.toDto() }
 
     private fun CategoryMonthSum.toDto() = MonthlyCategoryTotalDto(
         month = month,

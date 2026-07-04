@@ -20,9 +20,11 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.util.LinkedMultiValueMap
-import org.springframework.web.client.RestTemplate
+import org.springframework.context.annotation.Import
+import com.wealthStack.TestAuth
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@Import(TestAuth::class)
 class BankStatementControllerTest {
     @MockitoBean
     lateinit var searchRepository: BankingOperationSearchRepository
@@ -54,7 +56,7 @@ class BankStatementControllerTest {
         val headers = HttpHeaders()
         headers.contentType = MediaType.MULTIPART_FORM_DATA
 
-        val response = RestTemplate().postForEntity(
+        val response = TestAuth.rest().postForEntity(
             "${baseUrl()}/api/v1/bank-statements",
             HttpEntity(body, headers),
             Map::class.java
@@ -77,7 +79,7 @@ class BankStatementControllerTest {
         headers.contentType = MediaType.MULTIPART_FORM_DATA
 
         try {
-            RestTemplate().postForEntity(
+            TestAuth.rest().postForEntity(
                 "${baseUrl()}/api/v1/bank-statements",
                 HttpEntity(body, headers),
                 Map::class.java

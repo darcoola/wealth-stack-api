@@ -1,5 +1,6 @@
 package com.wealthStack.bankstatement.query
 
+import com.wealthStack.security.PartyContext
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -9,5 +10,6 @@ import org.springframework.web.bind.annotation.RestController
 class ReportQueryController(val finder: ReportFinder) {
 
     @GetMapping("/category-monthly-totals")
-    fun categoryMonthlyTotals(): List<MonthlyCategoryTotalDto> = finder.categoryMonthlyTotals()
+    fun categoryMonthlyTotals(ctx: PartyContext): List<MonthlyCategoryTotalDto> =
+        finder.categoryMonthlyTotals(ctx.partyId)
 }

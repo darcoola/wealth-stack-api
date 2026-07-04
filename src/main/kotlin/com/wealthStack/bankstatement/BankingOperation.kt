@@ -8,7 +8,7 @@ import java.time.LocalDate
 @Table(
     name = "banking_operations",
     uniqueConstraints = [
-        UniqueConstraint(name = "uk_banking_operation_identity", columnNames = ["fingerprint", "occurrence"])
+        UniqueConstraint(name = "uk_banking_operation_identity", columnNames = ["party_id", "fingerprint", "occurrence"])
     ]
 )
 class BankingOperation(
@@ -73,6 +73,15 @@ class BankingOperation(
 
     @Column(name = "needs_verification", nullable = false)
     var needsVerification: Boolean = false,
+
+    /**
+     * Owning party (see [com.wealthStack.party.Party]) — a plain FK column, deliberately not a JPA
+     * relation, to keep this package decoupled from the party domain. Parsers leave the default;
+     * [StatementImporter] stamps the importing party before anything is persisted (the FK rejects
+     * an unstamped 0).
+     */
+    @Column(name = "party_id", nullable = false)
+    var partyId: Long = 0,
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

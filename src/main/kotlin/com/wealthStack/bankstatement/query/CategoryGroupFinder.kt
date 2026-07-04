@@ -6,7 +6,7 @@ open class CategoryGroupFinder(
     private val repository: CategoryGroupRepository
 ) {
 
-    open fun findAll(): List<CategoryGroupDto> = repository.findAll()
+    open fun findAll(partyId: Long): List<CategoryGroupDto> = repository.findAllByPartyId(partyId)
         .sortedBy { it.name.lowercase() }
         .map { CategoryGroupDto(id = it.id!!, name = it.name) }
 }

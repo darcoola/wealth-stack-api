@@ -10,6 +10,10 @@ multiple Polish banks, normalizes them into a single `BankingOperation` model, p
 lets the user attach human-friendly display names to raw account identifiers, and classify
 operations with a user-curated **category dictionary**.
 
+**Multi-user**: authentication is Keycloak (OIDC, Google login brokered as an identity provider;
+sign-up is approval-gated), and all domain data is owned by a **party** (Party archetype: a user's
+personal PERSON party, or a shared ORGANIZATION "household") — see *Security & multi-tenancy*.
+
 ## Stack
 
 - **Kotlin 2.3.0** on **JDK 25**, **Spring Boot 4.0.2** (web + data-jpa + jackson-kotlin).
@@ -17,8 +21,12 @@ operations with a user-curated **category dictionary**.
 - Build: **Gradle (Groovy DSL)** — `build.gradle` / `settings.gradle` (note: *not* `.kts`).
 - Persistence: **PostgreSQL** in prod/dev, **H2** (PostgreSQL mode) for tests.
 - Schema is owned by **Flyway** (`src/main/resources/db/migration`), not Hibernate — see below.
-- Dev DB: `compose.yaml` (Postgres 17) auto-started via `spring-boot-docker-compose`.
-- Tests: JUnit 5 (`kotlin-test`) + Spring Boot Test + **assertk** assertions.
+- Auth: **Keycloak 26** (dev instance in compose on `:8081`, realm auto-imported from
+  `keycloak/realm-wealthstack.json`) + `spring-boot-starter-oauth2-resource-server` (JWT).
+- Dev infra: `compose.yaml` (Postgres 17, Elasticsearch, Keycloak) auto-started via
+  `spring-boot-docker-compose`.
+- Tests: JUnit 5 (`kotlin-test`) + Spring Boot Test + **assertk** assertions; HTTP tests
+  authenticate via the stub `JwtDecoder` in `src/test/kotlin/com/wealthStack/TestAuth.kt`.
 
 ## Build & run
 
@@ -71,6 +79,19 @@ Four JPA entities (`src/main/kotlin/com/wealthStack/bankstatement/`):
 
 `OperationType` is `CREDIT`/`DEBIT`. Amount sign drives the type (≥0 = CREDIT).
 
+All four tables carry a **`party_id`** column (plain `Long`, no JPA relation — keeps the package
+decoupled from `com.wealthStack.party`), and every unique constraint is a per-party composite:
+`(party_id, fingerprint, occurrence)`, `(party_id, name)` × 2, `(party_id, raw_account)`.
+
+Party/user entities live in `com.wealthStack.party`:
+- **`Party`** (`party`) — `type` PERSON/ORGANIZATION + `name`. Owns all domain data. Id **1** is the
+  well-known bootstrap party holding all pre-multi-user data.
+- **`AppUser`** (`app_user`) — mirror of a Keycloak identity (`keycloakSub` unique, `email` unique,
+  `displayName`, `personalPartyId` FK). Created just-in-time on first authenticated request
+  (`UserProvisioningService`); if the email matches `wealthstack.bootstrap.owner-email` and party 1
+  is unowned, the user **adopts party 1** instead of getting a fresh one.
+- **`PartyMembership`** (`party_membership`) — user ↔ party with role OWNER/MEMBER, unique per pair.
+
 ## Database schema & migrations
 
 Schema is managed by **Flyway**, not Hibernate. Migrations live in
@@ -84,6 +105,9 @@ on `banking_operations (date)` and `(category_id)`. `V6` added `categories.type`
 `banking_operations.additional_info` free-text note. `V8` added `banking_operations.needs_verification`.
 `V9` added the `category_groups` table (seeded Spending/Income/Others), replaced `categories.type`
 with a nullable `group_id` FK (backfilled from the old type), and indexed `categories (group_id)`.
+`V10` created the party model (`party`, `app_user`, `party_membership`) and seeded the bootstrap
+party (id 1). `V11` added `party_id NOT NULL` (backfilled to 1) to all four data tables and turned
+the global uniques into per-party composites.
 
 Hibernate runs in **`ddl-auto: validate`** (both prod and test): it never touches the schema, only
 checks the entities against what Flyway built. **Any entity change (new column/table/constraint)
@@ -92,19 +116,55 @@ names follow Spring's snake_case physical naming strategy (e.g. `bankName` → `
 
 ## Package layout & flow
 
-All code lives under `com.wealthStack.bankstatement`.
-
 ```
-bankstatement/
-  parser/        # bank-specific CSV parsers (write side input)
-  query/         # read side: finders + query controllers + DTOs
-  (root)         # entities, repositories, command controllers, services, config
+com.wealthStack/
+  bankstatement/
+    parser/        # bank-specific CSV parsers (write side input)
+    query/         # read side: finders + query controllers + DTOs
+    search/        # Elasticsearch auto-categorization (party-scoped)
+    (root)         # entities, repositories, command controllers, services, config
+  party/           # Party archetype: entities, repos, JIT provisioning, /me, household mgmt, PartyConfig
+  security/        # SecurityConfig (resource server), PartyContext + resolver, auth-config endpoint
+  web/             # WebConfig: SPA fallback + PartyContext argument-resolver registration
 ```
 
-**Wiring is explicit**, not annotation-scanned: `BankStatementConfig` declares every bean
-(parsers, factory, services, controllers, finders) via `@Bean`. Parsers are constructor-injected
-as a `List<StatementParser>`. When you add a service/controller/parser, register it there.
-(Entities and `JpaRepository` interfaces are still picked up by Spring Data automatically.)
+**Wiring is explicit**, not annotation-scanned: `BankStatementConfig` (and `PartyConfig` for the
+party domain) declare every bean (parsers, factory, services, controllers, finders) via `@Bean`.
+Parsers are constructor-injected as a `List<StatementParser>`. When you add a
+service/controller/parser, register it there. (Entities and `JpaRepository` interfaces are still
+picked up by Spring Data automatically.)
+
+## Security & multi-tenancy
+
+- **Resource server**: `security/SecurityConfig.kt` — stateless JWT validation against the Keycloak
+  realm (`spring.security.oauth2.resourceserver.jwt.issuer-uri`). `/api/v1/public/**` open (frontend
+  bootstrap config), `/api/v1/me` any authenticated user, all other `/api/**` require the
+  **`wealthstack-user` Keycloak realm role**, everything else (SPA assets) open. CSRF off.
+- **Approval-gated sign-up**: anyone can sign in (Keycloak login or the brokered Google IdP), but
+  without the realm role they only reach `/api/v1/me` (which reports `approved: false`; the SPA
+  shows a pending-approval page). Assigning the role in the Keycloak console IS the approval.
+- **Tenancy**: controllers declare a `PartyContext` parameter, resolved per request by
+  `PartyContextArgumentResolver` (registered in `WebConfig`): JIT-provisions the user, picks the
+  active party from the **`X-Party-Id`** header (absent → personal party), and 403s unless the user
+  is a member — the single gate that makes header spoofing harmless. Controllers pass
+  `ctx.partyId` explicitly into every service/finder (no Hibernate `@Filter` magic); services treat
+  another party's rows as "not found".
+- **Party management** (`party/PartyController`, `/api/v1/parties`): create an ORGANIZATION party
+  (caller becomes OWNER), list/add members (by email of a user who has signed in before),
+  change role / remove (OWNER-only, last owner protected). `GET /api/v1/me` returns profile,
+  `approved`, and the user's parties for the frontend switcher.
+- **Elasticsearch**: `BankingOperationDocument` carries `partyId` (doc id is
+  `partyId-fingerprint-occurrence`), and `AutoCategorizationService.predictCategory` hard-filters
+  on it, so category suggestions never cross parties.
+- **Dev Keycloak**: `keycloak/realm-wealthstack.json` (imported on container start) defines the
+  realm, the `wealthstack-web` public PKCE client, the `wealthstack-user` role, a Google IdP wired
+  to `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` env vars, and a ready `dev`/`dev` user. Keycloak
+  state is ephemeral by design (re-imported each start). Direct-access grants are enabled on the
+  client for curl-based dev testing only.
+- **Bootstrapping prod data**: set `wealthstack.bootstrap.owner-email` to your Google email — your
+  first login adopts party 1 and with it every operation imported before multi-user support. After
+  the ES id-scheme change, delete the `banking_operations` index once and re-run
+  `POST /api/v1/bank-statements/operations/sync` per party.
 
 ### Import flow (command side)
 1. `BankStatementController` `POST /api/v1/bank-statements` (multipart `file` + **optional** `bankName`).
@@ -254,9 +314,20 @@ frontend/
   angular.json                     # build output → frontend/dist/frontend/browser
 ```
 
+**Auth in the SPA** (`core/auth/`): `app.config.ts` runs `AuthService.init()` in an app
+initializer — it fetches `/api/v1/public/auth-config` (Keycloak url/realm/clientId from the
+backend, no per-env frontend build) and does a keycloak-js `check-sso` (PKCE S256,
+`public/silent-check-sso.html`). All routes sit behind `authGuard` (unauthenticated → Keycloak
+login preserving the deep link; unapproved per `/api/v1/me` → `pages/pending-approval/`).
+`authInterceptor` stamps `Authorization: Bearer` (auto-refresh) and `X-Party-Id` (from
+`PartyContextService`, persisted in localStorage) on every `/api/` call. The header shows a user
+menu (party switcher — switching persists + reloads —, Manage household, Sign out); the
+**Household** page (`pages/household/`, `core/parties.service.ts`) creates households and manages
+members.
+
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
-**Groups**, **Import**, **Accounts**, **Reports**, **Administration** (maintenance actions — today a
-"Remove all operations" danger-zone button hitting `DELETE .../operations/all`). The Operations table has a server-side filter bar
+**Groups**, **Import**, **Accounts**, **Reports**, **Household**, **Administration** (maintenance
+actions — today a "Remove all operations" danger-zone button hitting `DELETE .../operations/all`). The Operations table has a server-side filter bar
 (global search, a date-span range picker, and prefetched **account** and **category-group**
 multiselects — options pulled from the account-mappings and category-groups endpoints); it assigns a
 category per row

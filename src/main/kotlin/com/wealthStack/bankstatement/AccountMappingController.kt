@@ -1,5 +1,6 @@
 package com.wealthStack.bankstatement
 
+import com.wealthStack.security.PartyContext
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -7,19 +8,19 @@ import org.springframework.web.bind.annotation.*
 class AccountMappingController(val mapper: AccountMapper) {
 
     @PostMapping
-    fun create(@RequestBody request: AccountMappingRequest): AccountMapping =
-        mapper.create(request.rawAccount, request.displayName)
+    fun create(ctx: PartyContext, @RequestBody request: AccountMappingRequest): AccountMapping =
+        mapper.create(ctx.partyId, request.rawAccount, request.displayName)
 
     @PostMapping("/batch")
-    fun createBatch(@RequestBody requests: List<AccountMappingRequest>): List<AccountMapping> =
-        mapper.createAll(requests.map { Pair(it.rawAccount, it.displayName) })
+    fun createBatch(ctx: PartyContext, @RequestBody requests: List<AccountMappingRequest>): List<AccountMapping> =
+        mapper.createAll(ctx.partyId, requests.map { Pair(it.rawAccount, it.displayName) })
 
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @RequestBody request: AccountMappingRequest): AccountMapping =
-        mapper.update(id, request.rawAccount, request.displayName)
+    fun update(ctx: PartyContext, @PathVariable id: Long, @RequestBody request: AccountMappingRequest): AccountMapping =
+        mapper.update(ctx.partyId, id, request.rawAccount, request.displayName)
 
     @DeleteMapping("/{id}")
-    fun delete(@PathVariable id: Long) = mapper.delete(id)
+    fun delete(ctx: PartyContext, @PathVariable id: Long) = mapper.delete(ctx.partyId, id)
 }
 
 data class AccountMappingRequest(

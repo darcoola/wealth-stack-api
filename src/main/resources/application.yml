@@ -17,5 +17,21 @@ spring:
             max-request-size: 10MB
     elasticsearch:
         uris: http://localhost:9200
+    security:
+        oauth2:
+            resourceserver:
+                jwt:
+                    issuer-uri: http://localhost:8081/realms/wealthstack
 server:
     port: 8088
+
+wealthstack:
+    # Frontend OIDC settings served by /api/v1/public/auth-config (single source of truth).
+    auth:
+        url: http://localhost:8081
+        realm: wealthstack
+        client-id: wealthstack-web
+    bootstrap:
+        # First login with this email adopts the pre-existing default party (id 1) and all
+        # data imported before multi-user support. Leave empty to disable.
+        owner-email: "dariuszkulig@gmail.com"

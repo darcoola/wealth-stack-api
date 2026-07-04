@@ -15,6 +15,9 @@ open class BankingOperationFinder(
 ) {
 
     /**
+     * All results are scoped to [partyId] — the tenancy predicate is added unconditionally before
+     * any optional filter.
+     *
      * Column filters (all optional, combined with AND):
      * - [accounts] / [unmappedAccount] — keep operations whose raw [BankingOperation.account] is in
      *   the set, OR (when [unmappedAccount]) that have no account mapping (null `accountDisplayName`).
@@ -23,6 +26,7 @@ open class BankingOperationFinder(
      * - [dateFrom]/[dateTo] — inclusive date span bounds (either side may be open).
      */
     open fun findAll(
+        partyId: Long,
         globalFilter: String?,
         needsVerificationOnly: Boolean,
         uncategorizedOnly: Boolean,
@@ -35,6 +39,8 @@ open class BankingOperationFinder(
     ): Page<OperationDto> {
         val spec = Specification<BankingOperation> { root, query, cb ->
             val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
+
+            predicates.add(cb.equal(root.get<Long>("partyId"), partyId))
 
             if (needsVerificationOnly) {
                 predicates.add(cb.isTrue(root.get<Boolean>("needsVerification")))

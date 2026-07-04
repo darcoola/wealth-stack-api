@@ -48,6 +48,7 @@ class OperationCommandServiceTest {
                 account = "ACME 111",
                 additionalInfo = additionalInfo,
                 fingerprint = fingerprint,
+                partyId = 1L,
             )
         )
 
@@ -55,7 +56,7 @@ class OperationCommandServiceTest {
     fun `adds a note to an operation that had none`() {
         val op = persistOperation()
 
-        service.updateAdditionalInfo(op.id!!, "new phone case")
+        service.updateAdditionalInfo(1L,op.id!!, "new phone case")
 
         assertThat(repository.findById(op.id!!).get().additionalInfo).isEqualTo("new phone case")
     }
@@ -64,14 +65,14 @@ class OperationCommandServiceTest {
     fun `trims the note and clears it when blank`() {
         val op = persistOperation(additionalInfo = "old note")
 
-        service.updateAdditionalInfo(op.id!!, "   ")
+        service.updateAdditionalInfo(1L,op.id!!, "   ")
 
         assertThat(repository.findById(op.id!!).get().additionalInfo).isNull()
     }
 
     @Test
     fun `throws for an unknown operation`() {
-        assertThrows<IllegalArgumentException> { service.updateAdditionalInfo(-1, "x") }
+        assertThrows<IllegalArgumentException> { service.updateAdditionalInfo(1L,-1, "x") }
     }
 
     @Test
@@ -80,7 +81,7 @@ class OperationCommandServiceTest {
         persistOperation(fingerprint = "b")
         persistOperation(fingerprint = "c")
 
-        val deleted = service.deleteEverything()
+        val deleted = service.deleteEverything(1L)
 
         assertThat(deleted).isEqualTo(3L)
         assertThat(repository.count()).isEqualTo(0L)

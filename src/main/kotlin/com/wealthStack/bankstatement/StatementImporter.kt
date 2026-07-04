@@ -14,19 +14,19 @@ open class StatementImporter(
 ) {
 
     /**
-     * Imports a bank CSV. When [bankName] is null/blank the parser is auto-detected from the file
-     * content ([StatementParserFactory.detectParser]); an unrecognized or ambiguous file fails the
-     * import (HTTP 400).
+     * Imports a bank CSV into the given party's ledger. When [bankName] is null/blank the parser is
+     * auto-detected from the file content ([StatementParserFactory.detectParser]); an unrecognized
+     * or ambiguous file fails the import (HTTP 400).
      */
     @Transactional
-    open fun importStatement(bankName: String?, fileName: String, content: ByteArray): ImportResult {
+    open fun importStatement(partyId: Long, bankName: String?, fileName: String, content: ByteArray): ImportResult {
         val parser = if (bankName.isNullOrBlank()) {
             parserFactory.detectParser(content)
         } else {
             parserFactory.getParser(bankName)
         }
         val operations = parser.parse(String(content, parser.charset), fileName)
-        return persist(operations, parser.bankName, fileName)
+        return persist(partyId, operations, parser.bankName, fileName)
     }
 
     /**
@@ -35,17 +35,25 @@ open class StatementImporter(
      * and duplicate-overwrite pipeline as parsed statements.
      */
     @Transactional
-    open fun importOperations(request: ManualOperationsRequest): ImportResult {
+    open fun importOperations(partyId: Long, request: ManualOperationsRequest): ImportResult {
         require(request.operations.isNotEmpty()) { "At least one operation is required" }
         val source = request.source?.takeIf { it.isNotBlank() }
         val operations = request.operations.map { it.toEntity(request.bankName, source) }
-        return persist(operations, request.bankName, source)
+        return persist(partyId, operations, request.bankName, source)
     }
 
-    private fun persist(operations: List<BankingOperation>, bankName: String, fileName: String?): ImportResult {
-        applyAccountMappings(operations)
-        resolveCategories(operations)
-        
+    private fun persist(
+        partyId: Long,
+        operations: List<BankingOperation>,
+        bankName: String,
+        fileName: String?
+    ): ImportResult {
+        // Parsers know nothing about parties; stamp ownership before any lookup or persistence.
+        operations.forEach { it.partyId = partyId }
+
+        applyAccountMappings(partyId, operations)
+        resolveCategories(partyId, operations)
+
         operations.filter { it.category == null }.forEach { op ->
             val predicted = autoCategorizationService.predictCategory(op)
             if (predicted != null) {
@@ -53,13 +61,14 @@ open class StatementImporter(
                 op.needsVerification = true
             }
         }
-        
+
         assignFingerprints(operations)
 
         // Existing rows that could collide with this batch, keyed by their (fingerprint, occurrence)
         // identity so a re-import maps onto the same physical row instead of inserting a duplicate.
+        // Scoped to the party: identical statements imported by two parties never collide.
         val existingByIdentity = repository
-            .findAllByFingerprintIn(operations.map { it.fingerprint }.toSet())
+            .findAllByPartyIdAndFingerprintIn(partyId, operations.map { it.fingerprint }.toSet())
             .associateBy { it.fingerprint to it.occurrence }
 
         var imported = 0
@@ -77,7 +86,7 @@ open class StatementImporter(
         }
 
         repository.saveAll(persisted)
-        
+
         autoCategorizationService.indexOperations(persisted)
 
         val origin = fileName?.let { " from $it" } ?: ""
@@ -92,20 +101,20 @@ open class StatementImporter(
     }
 
     /**
-     * Ensures every imported operation is connected to an [AccountMapping]. Existing mappings are
-     * applied as before; any raw account seen in this batch that has no mapping yet gets one created
-     * on the fly with its display name defaulting to the raw account (the user can rename it later on
-     * the Accounts page). The denormalized [BankingOperation.accountDisplayName] is then set from the
-     * mapping for every operation.
+     * Ensures every imported operation is connected to an [AccountMapping] of the importing party.
+     * Existing mappings are applied as before; any raw account seen in this batch that has no
+     * mapping yet gets one created on the fly with its display name defaulting to the raw account
+     * (the user can rename it later on the Accounts page). The denormalized
+     * [BankingOperation.accountDisplayName] is then set from the mapping for every operation.
      */
-    private fun applyAccountMappings(operations: List<BankingOperation>) {
-        val mappings = accountMappingRepository.findAll()
+    private fun applyAccountMappings(partyId: Long, operations: List<BankingOperation>) {
+        val mappings = accountMappingRepository.findAllByPartyId(partyId)
             .associateByTo(HashMap()) { it.rawAccount }
 
         val missing = operations.map { it.account }.toSet().filter { it !in mappings }
         if (missing.isNotEmpty()) {
             accountMappingRepository
-                .saveAll(missing.map { AccountMapping(rawAccount = it, displayName = it) })
+                .saveAll(missing.map { AccountMapping(rawAccount = it, displayName = it, partyId = partyId) })
                 .forEach { mappings[it.rawAccount] = it }
         }
 
@@ -113,16 +122,16 @@ open class StatementImporter(
     }
 
     /**
-     * Resolves the category name a manual import carries (see [BankingOperation.categoryName]) to a
-     * dictionary entry, requiring it to already exist — an unknown name fails the whole import
-     * (HTTP 400). Rows without a name (every raw-bank row) are left Uncategorized.
+     * Resolves the category name a manual import carries (see [BankingOperation.categoryName]) to
+     * the party's dictionary entry, requiring it to already exist — an unknown name fails the whole
+     * import (HTTP 400). Rows without a name (every raw-bank row) are left Uncategorized.
      */
-    private fun resolveCategories(operations: List<BankingOperation>) {
+    private fun resolveCategories(partyId: Long, operations: List<BankingOperation>) {
         val resolved = HashMap<String, Category>()
         operations.forEach { op ->
             val name = op.categoryName?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
             op.category = resolved.getOrPut(name) {
-                categoryRepository.findByName(name)
+                categoryRepository.findByPartyIdAndName(partyId, name)
                     ?: throw IllegalArgumentException(
                         "Unknown category '$name'. Create it in the dictionary before importing."
                     )

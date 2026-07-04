@@ -46,48 +46,48 @@ class CategoryGroupTest {
 
     @Test
     fun `creates renames and rejects duplicate names`() {
-        val spending = categoryGroupService.create("Spending")
+        val spending = categoryGroupService.create(1L,"Spending")
         assertThat(spending.id).isNotNull()
 
-        categoryGroupService.rename(spending.id!!, "Outgoing")
+        categoryGroupService.rename(1L,spending.id!!, "Outgoing")
         assertThat(categoryGroupRepository.findById(spending.id!!).get().name).isEqualTo("Outgoing")
 
-        categoryGroupService.create("Income")
+        categoryGroupService.create(1L,"Income")
         // Renaming onto an existing name is rejected.
-        assertThrows<IllegalArgumentException> { categoryGroupService.rename(spending.id!!, "Income") }
+        assertThrows<IllegalArgumentException> { categoryGroupService.rename(1L,spending.id!!, "Income") }
         // Creating a duplicate name is rejected.
-        assertThrows<IllegalArgumentException> { categoryGroupService.create("Income") }
+        assertThrows<IllegalArgumentException> { categoryGroupService.create(1L,"Income") }
     }
 
     @Test
     fun `a category is created in a group and reads it back`() {
-        val group = categoryGroupService.create("Spending")
+        val group = categoryGroupService.create(1L,"Spending")
 
-        val category = categoryService.create("Groceries", group.id)
+        val category = categoryService.create(1L,"Groceries", group.id)
 
         assertThat(categoryRepository.findById(category.id!!).get().group?.name).isEqualTo("Spending")
     }
 
     @Test
     fun `updating a category moves it between groups and can ungroup it`() {
-        val spending = categoryGroupService.create("Spending")
-        val investments = categoryGroupService.create("Investments")
-        val category = categoryService.create("Fund", spending.id)
+        val spending = categoryGroupService.create(1L,"Spending")
+        val investments = categoryGroupService.create(1L,"Investments")
+        val category = categoryService.create(1L,"Fund", spending.id)
 
-        categoryService.update(category.id!!, "Fund", SetGroup(investments.id))
+        categoryService.update(1L,category.id!!, "Fund", SetGroup(investments.id))
         assertThat(categoryRepository.findById(category.id!!).get().group?.name).isEqualTo("Investments")
 
         // Setting the group to null ungroups the category.
-        categoryService.update(category.id!!, "Fund", SetGroup(null))
+        categoryService.update(1L,category.id!!, "Fund", SetGroup(null))
         assertThat(categoryRepository.findById(category.id!!).get().group).isNull()
     }
 
     @Test
     fun `deleting a group in use leaves its categories ungrouped`() {
-        val group = categoryGroupService.create("Spending")
-        val category = categoryService.create("Groceries", group.id)
+        val group = categoryGroupService.create(1L,"Spending")
+        val category = categoryService.create(1L,"Groceries", group.id)
 
-        categoryGroupService.delete(group.id!!)
+        categoryGroupService.delete(1L,group.id!!)
 
         assertThat(categoryGroupRepository.findById(group.id!!).isPresent).isEqualTo(false)
         assertThat(categoryRepository.findById(category.id!!).get().group).isNull()

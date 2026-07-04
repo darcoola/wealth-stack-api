@@ -1,8 +1,10 @@
 package com.wealthStack.web
 
+import com.wealthStack.security.PartyContextArgumentResolver
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.Resource
+import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.resource.PathResourceResolver
@@ -16,7 +18,13 @@ import org.springframework.web.servlet.resource.PathResourceResolver
  * is unaffected; unknown API paths return 404 rather than the SPA shell.
  */
 @Configuration
-class WebConfig : WebMvcConfigurer {
+class WebConfig(
+    private val partyContextArgumentResolver: PartyContextArgumentResolver,
+) : WebMvcConfigurer {
+
+    override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
+        resolvers.add(partyContextArgumentResolver)
+    }
 
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
         registry

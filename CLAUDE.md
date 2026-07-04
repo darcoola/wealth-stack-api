@@ -39,8 +39,11 @@ cd frontend && npm run build     # Production build → frontend/dist/frontend/b
 
 See `ARCHITECTURE.md`. Key points:
 - Build uses Gradle **Groovy DSL** (`build.gradle`/`settings.gradle`), not Kotlin DSL.
-- Beans are wired explicitly in `BankStatementConfig` (no `@Service`/`@Component` scanning for
-  services/controllers); register new ones there.
+- Beans are wired explicitly in `BankStatementConfig` / `PartyConfig` (no `@Service`/`@Component`
+  scanning for services/controllers); register new ones there.
+- Auth: Keycloak (compose service on :8081, realm imported from `keycloak/`), app is an OAuth2
+  resource server. All data is party-owned; controllers take a `PartyContext` and every
+  service/finder call is scoped by `partyId`. HTTP tests use the `TestAuth` stub JwtDecoder.
 - PostgreSQL in dev/prod (auto-started via `compose.yaml`); tests run against in-memory H2.
 - Schema is owned by **Flyway** (`src/main/resources/db/migration`); Hibernate runs in
   `ddl-auto: validate`. Any entity change needs a new `V<n>__...sql` migration — never edit an
