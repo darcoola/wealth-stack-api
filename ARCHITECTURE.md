@@ -232,11 +232,14 @@ inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text *
 via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the Categories page is the dictionary CRUD
 (`core/categories.service.ts`) — each row's spending/income `type` is editable via an inline
 `p-select`, and the add-row sets the new category's type. The **Reports** page (`pages/reports/`,
-`core/reports.service.ts`) has Monthly/Yearly tabs (`primeng/tabs`) over `p-chart` (`primeng/chart`,
-needs the `chart.js` peer dep); each tab renders one chart **per category type** (Spending, Income,
-Others — rows split client-side by `categoryType`, Uncategorized folded into Others): Monthly =
-grouped bar (categories on X, one bar per picked month), Yearly = line (12 months of a chosen year,
-one line per category). Totals are shown as-is (spending negative, income positive); an inline
+`core/reports.service.ts`) has Monthly/Yearly/Table tabs (`primeng/tabs`); Monthly & Yearly render
+`p-chart` (`primeng/chart`, needs the `chart.js` peer dep), Table renders a `p-table` pivot. Each
+tab renders one view **per category type** (Spending, Income, Others — rows split client-side by
+`categoryType`, Uncategorized folded into Others): Monthly = grouped bar (categories on X, one bar
+per picked month), Yearly = line (12 months of a chosen year, one line per category), Table = a
+spreadsheet-style pivot for a chosen year (category rows × 12 month columns + a right-hand **Sum**
+column, plus a bottom **Total** row; frozen first column, negatives in the danger colour, rows
+sorted by magnitude). Totals are shown as-is (spending negative, income positive); an inline
 chart.js plugin (`valueLabelsPlugin`, passed via the PrimeNG `[plugins]` input) prints each
 bar/point's value. One fetch, all selection client-side. Add a page by creating
 `pages/<name>/<name>.ts`, a route in `app.routes.ts`, and a `MenuItem` in `app.ts`.

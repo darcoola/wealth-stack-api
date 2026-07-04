@@ -48,6 +48,43 @@
   height: 100%;
 }
 
+// Spreadsheet-style yearly pivot: category rows, month columns, emphasized Sum column & Total row.
+.summary-table {
+  font-size: 0.78rem;
+
+  // Concise cells: trim the default table padding on every header/body/footer cell.
+  th,
+  td {
+    padding: 0.3rem 0.5rem;
+  }
+
+  th.num,
+  td.num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cat-col {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  // The right-hand Sum column stands out from the monthly cells.
+  th.sum-col,
+  td.sum-col {
+    font-weight: 600;
+    background: var(--p-content-hover-background);
+  }
+
+  // The bottom Total row is the column-wise summary.
+  .total-row td {
+    font-weight: 700;
+    border-top: 2px solid var(--p-content-border-color);
+    background: var(--p-content-hover-background);
+  }
+}
+
 .empty-hint {
   color: var(--p-text-muted-color);
   text-align: center;

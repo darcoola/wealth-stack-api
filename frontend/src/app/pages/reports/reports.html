@@ -13,6 +13,7 @@
   <p-tablist>
     <p-tab value="monthly">Monthly</p-tab>
     <p-tab value="yearly">Yearly</p-tab>
+    <p-tab value="table">Table</p-tab>
   </p-tablist>
   <p-tabpanels>
     <!-- Monthly: categories on the X-axis, one grouped bar per selected month. -->
@@ -110,6 +111,76 @@
       } @else {
         <p-card>
           <p class="empty-hint">No data yet. Import a statement to see yearly trends.</p>
+        </p-card>
+      }
+    </p-tabpanel>
+
+    <!-- Table: a spreadsheet-style pivot per category type — categories × 12 months + Sum. -->
+    <p-tabpanel value="table">
+      <div class="controls">
+        <span class="control-label">Year</span>
+        <p-select
+          [options]="availableYears()"
+          [ngModel]="selectedYear()"
+          (onChange)="selectedYear.set($event.value)"
+          placeholder="Year"
+          appendTo="body" />
+      </div>
+
+      @if (selectedYear() != null) {
+        @for (section of summarySections(); track section.type) {
+          <section class="chart-section">
+            <h2 class="chart-title">{{ section.title }}</h2>
+            @if (section.hasData) {
+              <p-table
+                [value]="section.rows"
+                styleClass="p-datatable-sm summary-table"
+                [stripedRows]="true"
+                [scrollable]="true">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th pFrozenColumn class="cat-col">Category</th>
+                    @for (m of monthNames; track m) {
+                      <th class="num">{{ m }}</th>
+                    }
+                    <th class="num sum-col">Sum</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-row>
+                  <tr>
+                    <td pFrozenColumn class="cat-col">{{ row.label }}</td>
+                    @for (v of row.months; track $index) {
+                      <td class="num">
+                        {{ v ? (v | number: '1.2-2') + ' PLN' : '' }}
+                      </td>
+                    }
+                    <td class="num sum-col">
+                      {{ row.total ? (row.total | number: '1.2-2') + ' PLN' : '' }}
+                    </td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="footer">
+                  <tr class="total-row">
+                    <td pFrozenColumn class="cat-col">Total</td>
+                    @for (v of section.monthTotals; track $index) {
+                      <td class="num">
+                        {{ v ? (v | number: '1.2-2') + ' PLN' : '' }}
+                      </td>
+                    }
+                    <td class="num sum-col">
+                      {{ section.grandTotal ? (section.grandTotal | number: '1.2-2') + ' PLN' : '' }}
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            } @else {
+              <p class="empty-hint">No {{ section.title.toLowerCase() }} categories yet.</p>
+            }
+          </section>
+        }
+      } @else {
+        <p-card>
+          <p class="empty-hint">No data yet. Import a statement to see yearly summaries.</p>
         </p-card>
       }
     </p-tabpanel>

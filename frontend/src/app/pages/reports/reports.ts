@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,6 +8,7 @@ import { ChartModule } from 'primeng/chart';
 import { DatePickerModule } from 'primeng/datepicker';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { CategoryType } from '../../core/category';
 import { MonthlyCategoryTotal } from '../../core/report';
@@ -48,9 +50,28 @@ interface ChartSection {
   data: unknown;
 }
 
+/** One category's row in the yearly summary table: its 12 monthly totals and their sum. */
+interface SummaryRow {
+  label: string;
+  months: number[];
+  total: number;
+}
+
+/** A pivot table for one category type: category rows × 12 months, with row/column/grand totals. */
+interface SummarySection {
+  type: CategoryType;
+  title: string;
+  hasData: boolean;
+  rows: SummaryRow[];
+  /** Column totals across all categories, one per month. */
+  monthTotals: number[];
+  grandTotal: number;
+}
+
 @Component({
   selector: 'app-reports',
   imports: [
+    DecimalPipe,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -59,6 +80,7 @@ interface ChartSection {
     DatePickerModule,
     MultiSelectModule,
     SelectModule,
+    TableModule,
     TabsModule,
   ],
   templateUrl: './reports.html',
@@ -73,6 +95,9 @@ export class Reports {
 
   /** Draws each bar/point's value on the canvas (see [valueLabelsPlugin]). */
   protected readonly plugins = [valueLabelsPlugin];
+
+  /** Month column headers for the summary table. */
+  protected readonly monthNames = MONTH_NAMES;
 
   // ----- Monthly tab: a set of picked months compared side-by-side as grouped bars. -----
   protected readonly selectedMonthDates = signal<Date[]>([previousMonth()]);
@@ -279,6 +304,36 @@ export class Reports {
       grid: { drawOnChartArea: false },
     };
     return options;
+  });
+
+  // ---- Table tab: a spreadsheet-style yearly pivot, one table per category type. ----
+
+  protected readonly summarySections = computed<SummarySection[]>(() => {
+    const year = this.selectedYear();
+    const totals = new Map<string, number>();
+    for (const r of this.rows()) {
+      totals.set(`${r.month}::${this.keyOf(r)}`, r.total);
+    }
+    const monthValue = (key: CategoryKey, mi: number) =>
+      year == null ? 0 : totals.get(`${year}-${String(mi + 1).padStart(2, '0')}::${key}`) ?? 0;
+
+    return TYPE_ORDER.map((type) => {
+      const rows: SummaryRow[] = this.categoriesForType(type).map((c) => {
+        const months = MONTH_NAMES.map((_, mi) => monthValue(c.key, mi));
+        return { label: c.label, months, total: months.reduce((a, b) => a + b, 0) };
+      });
+      // Biggest movers first (by magnitude), matching the spreadsheet the users work from.
+      rows.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+      const monthTotals = MONTH_NAMES.map((_, mi) => rows.reduce((s, r) => s + r.months[mi], 0));
+      return {
+        type,
+        title: TYPE_LABEL[type],
+        hasData: rows.length > 0,
+        rows,
+        monthTotals,
+        grandTotal: rows.reduce((s, r) => s + r.total, 0),
+      };
+    });
   });
 
   // ---- Chart options (themed from the current PrimeNG CSS variables) ----
