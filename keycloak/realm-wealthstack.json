@@ -25,16 +25,17 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
-      "rootUrl": "http://localhost:8088",
+      "rootUrl": "${APP_ORIGIN}",
       "baseUrl": "/",
       "redirectUris": [
         "http://localhost:4200/*",
-        "http://localhost:8088/*"
+        "http://localhost:8088/*",
+        "${APP_ORIGIN}/*"
       ],
       "webOrigins": ["+"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:8088/*"
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:8088/*##${APP_ORIGIN}/*"
       }
     }
   ],

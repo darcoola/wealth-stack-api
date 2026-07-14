@@ -44,6 +44,10 @@ services:
       # simply fails with the placeholders until real credentials are provided.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-placeholder}
+      # Also substituted into the realm: the SPA's origin, added to the client's redirect /
+      # post-logout URIs. Locally that is just the app itself; compose.prod.yml sets the public
+      # https host instead, which is what makes the same realm file work in production.
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8088}
     ports:
       - "8081:8081"
     volumes:

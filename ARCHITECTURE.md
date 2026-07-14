@@ -25,6 +25,8 @@ personal PERSON party, or a shared ORGANIZATION "household") — see *Security &
   `keycloak/realm-wealthstack.json`) + `spring-boot-starter-oauth2-resource-server` (JWT).
 - Dev infra: `compose.yaml` (Postgres 17, Elasticsearch, Keycloak) auto-started via
   `spring-boot-docker-compose`.
+- Prod: `Dockerfile` + `compose.prod.yml` + `Caddyfile` on a single VM — see *Deployment* below
+  and `DEPLOY.md`.
 - Tests: JUnit 5 (`kotlin-test`) + Spring Boot Test + **assertk** assertions; HTTP tests
   authenticate via the stub `JwtDecoder` in `src/test/kotlin/com/wealthStack/TestAuth.kt`.
 
@@ -373,6 +375,43 @@ Android and iOS home-screen install. Icons in `public/icons/` were rasterized fr
 (rounded, `purpose:any`) and `icon-maskable.svg` (full-bleed safe-zone, `purpose:maskable`) via
 macOS `sips`. The SW activates only over the served jar (secure-context requirement met by
 `localhost`/HTTPS), so test it with `./gradlew bootRun`, not the dev server.
+
+## Deployment
+
+Step-by-step instructions live in **`DEPLOY.md`**; this is the shape of it. Target is a single
+Oracle Cloud Always-Free **Ampere A1** VM (arm64, 4 OCPU / 24 GB) running everything under Compose.
+
+```
+internet → Caddy :443 ─┬─ /auth/*  → keycloak:8081   (KC_HTTP_RELATIVE_PATH=/auth)
+   (Let's Encrypt TLS) └─ /*       → app:8088        (Spring + bundled SPA)
+                                       ├── postgres:5432   (wealthstack + keycloak DBs)
+                                       └── elasticsearch:9200
+```
+
+- **`Dockerfile`** — multi-stage: Temurin 25 JDK runs the full Gradle build (which downloads Node
+  and builds the Angular UI into the jar), then a JRE-only runtime stage. Multi-arch bases, so it
+  builds natively on the arm64 VM.
+- **`compose.prod.yml`** — the production stack. Kept separate from `compose.yaml` on purpose:
+  that one is the dev stack and `spring-boot-docker-compose` auto-starts it, which must never
+  touch prod containers. Caddy is the only service publishing ports.
+- **`application-prod.yml`** (`SPRING_PROFILES_ACTIVE=prod`) — every environment value comes from
+  an env var; `.env.prod` (gitignored, template in `.env.prod.example`) supplies them.
+- **Single hostname.** Keycloak is served under `/auth` on the same host as the app, so the whole
+  deployment needs one DNS name and one certificate. **sslip.io** provides the hostname without a
+  registrar (`130-61-42-7.sslip.io` → that IP) and Let's Encrypt still issues a real cert for it.
+  HTTPS is non-negotiable: PKCE (Web Crypto), the Google IdP redirect, and the PWA service worker
+  all require a secure context.
+- **JWT validation splits the two Keycloak URLs**: `issuer-uri` is the *public* URL (that is the
+  `iss` the browser's tokens carry) while `jwk-set-uri` points at `keycloak:8081` on the internal
+  network — so key fetches never depend on NAT hairpinning back through the public IP, and the app
+  does no OIDC discovery at startup (it can boot before Keycloak is up).
+- **Keycloak runs in production mode** (`start`, not `start-dev`) backed by its own Postgres
+  database, so its state persists. `--import-realm` only creates the realm when absent, which
+  matters because **role assignments are the sign-up approval mechanism** — a re-import on every
+  restart would wipe them. (Dev is the opposite: ephemeral, re-imported each start, by design.)
+- The realm's client redirect / post-logout URIs and `rootUrl` are parameterized with
+  `${APP_ORIGIN}` (substituted at import, exactly like `GOOGLE_CLIENT_ID`), so one realm file
+  serves both dev — where `compose.yaml` defaults it to `http://localhost:8088` — and prod.
 
 ## Conventions
 

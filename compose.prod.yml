@@ -1,0 +1,128 @@
+# Production stack for a single VM (Oracle Cloud Ampere A1). Everything talks over the internal
+# Docker network; Caddy is the only container publishing ports, and it terminates TLS.
+#
+#   docker compose -f compose.prod.yml --env-file .env.prod up -d --build
+#
+# Deliberately NOT compose.yaml: that file is the dev stack and is auto-started by
+# spring-boot-docker-compose, which must never touch the production containers.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: wealthstack-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Caddy provisions a Let's Encrypt cert for this hostname automatically. Port 80 must be
+      # reachable from the internet for the HTTP-01 challenge.
+      APP_HOST: ${APP_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # issued certs — persist this or you will re-request on every restart
+      - caddy-config:/config
+    depends_on:
+      - app
+      - keycloak
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wealthstack-app
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/wealthstack
+      DB_USER: wealthstack
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      # Tokens are minted through the public URL, so that is the issuer the app must expect...
+      KEYCLOAK_ISSUER_URI: https://${APP_HOST}/auth/realms/wealthstack
+      # ...but the signing keys are fetched container-to-container, bypassing the public hostname.
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8081/auth/realms/wealthstack/protocol/openid-connect/certs
+      WEALTHSTACK_AUTH_URL: https://${APP_HOST}/auth
+      WEALTHSTACK_OWNER_EMAIL: ${WEALTHSTACK_OWNER_EMAIL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    container_name: wealthstack-keycloak
+    restart: unless-stopped
+    # `start` (not start-dev) = production mode. --import-realm only creates the realm if it does
+    # not already exist, so restarts will NOT wipe the role assignments that gate sign-up approval.
+    command: start --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # Public URL. Keycloak is served under /auth on the same host as the app, so the issuer and
+      # every link it generates carry that prefix.
+      KC_HOSTNAME: https://${APP_HOST}/auth
+      KC_HTTP_RELATIVE_PATH: /auth
+      # TLS is terminated at Caddy; Keycloak speaks plain HTTP on the internal network and trusts
+      # X-Forwarded-* to know the request really arrived over https.
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8081"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      # Creates the admin account on FIRST start only (it is persisted in Postgres afterwards).
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Substituted into realm-wealthstack.json at import time.
+      APP_ORIGIN: https://${APP_HOST}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: wealthstack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wealthstack
+      POSTGRES_USER: wealthstack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Consumed by the init script below, which also provisions Keycloak's separate database.
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - wealthstack-postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wealthstack -d wealthstack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.3
+    container_name: wealthstack-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    mem_limit: 1500m
+    volumes:
+      - wealthstack-es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  wealthstack-postgres-data:
+  wealthstack-es-data:
+  caddy-data:
+  caddy-config:

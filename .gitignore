@@ -42,7 +42,8 @@ bin/
 .DS_Store
 
 ### Local bank statement exports (real financial data — never commit) ###
-/revolut.csv
+### Test fixtures under src/test/resources are re-included below.
+/*.csv
 
 ### Frontend (Angular) ###
 frontend/node_modules/
@@ -54,3 +55,7 @@ frontend/.angular/cache/
 /certs/
 /compose.override.yml
 /config/
+
+### Production secrets (see .env.prod.example — that template IS committed, the filled-in file is not) ###
+.env
+.env.prod
