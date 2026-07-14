@@ -1,4 +1,4 @@
-import { Component, DOCUMENT, computed, inject, signal } from '@angular/core';
+import { Component, DOCUMENT, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -17,7 +17,12 @@ export class App {
   protected readonly auth = inject(AuthService);
   protected readonly partyContext = inject(PartyContextService);
 
-  protected readonly sidebarCollapsed = signal(false);
+  /** Below this width the sidebar becomes an off-canvas drawer (see app.scss @media). */
+  private static readonly MOBILE_BREAKPOINT = 768;
+
+  protected readonly isMobile = signal(App.isNarrowViewport());
+  // Start with the drawer closed on phones; keep the sidebar open on wider screens.
+  protected readonly sidebarCollapsed = signal(App.isNarrowViewport());
   protected readonly darkMode = signal(false);
 
   // Left-hand navigation. Add menu items here as new pages come online.
@@ -63,6 +68,27 @@ export class App {
 
   protected toggleSidebar(): void {
     this.sidebarCollapsed.update((collapsed) => !collapsed);
+  }
+
+  /** Tapping a nav item or the backdrop should dismiss the drawer on mobile (no-op on desktop). */
+  protected closeSidebarOnMobile(): void {
+    if (this.isMobile()) {
+      this.sidebarCollapsed.set(true);
+    }
+  }
+
+  @HostListener('window:resize')
+  protected onResize(): void {
+    const mobile = App.isNarrowViewport();
+    if (mobile !== this.isMobile()) {
+      this.isMobile.set(mobile);
+      // Crossing the breakpoint: collapse the drawer on shrink, reveal the sidebar on grow.
+      this.sidebarCollapsed.set(mobile);
+    }
+  }
+
+  private static isNarrowViewport(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth <= App.MOBILE_BREAKPOINT;
   }
 
   protected toggleDarkMode(): void {

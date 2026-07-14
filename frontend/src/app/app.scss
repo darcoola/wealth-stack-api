@@ -68,6 +68,69 @@
   padding: 1.5rem;
 }
 
+// Backdrop is desktop-hidden; the mobile media query below turns it on with the drawer.
+.layout-backdrop {
+  display: none;
+}
+
+// ── Mobile: sidebar becomes an off-canvas drawer over full-width content ──────────────
+@media (max-width: 768px) {
+  .layout,
+  .layout--collapsed {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'content';
+  }
+
+  .layout-header {
+    // Respect the notch / rounded corners in iOS standalone (landscape) mode.
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .layout-sidebar {
+    position: fixed;
+    top: 60px; // sits directly under the fixed-height header row
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 82vw;
+    z-index: 1100;
+    transform: translateX(0);
+    transition: transform 0.2s ease;
+    box-shadow: 0 0 1.5rem rgba(0, 0, 0, 0.25);
+  }
+
+  // Off-canvas when collapsed (the default state on mobile).
+  .layout--collapsed .layout-sidebar {
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+
+  .layout-backdrop {
+    display: block;
+    position: fixed;
+    inset: 60px 0 0 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1050;
+  }
+
+  .layout--collapsed .layout-backdrop {
+    display: none;
+  }
+
+  .layout-content {
+    padding: 1rem 0.875rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  // The party-name label crowds the header on phones; the icon + user menu still convey it.
+  :host ::ng-deep .user-menu-btn .p-button-label {
+    display: none;
+  }
+}
+
 // Highlights the currently active party in the user menu (menu renders in an overlay,
 // so the rule must be global-ish via ::ng-deep on the appended-to-body panel).
 ::ng-deep .active-party > .p-menu-item-content {

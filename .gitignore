@@ -49,3 +49,8 @@ frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 frontend/.angular/cache/
+
+### Local HTTPS for mobile testing (mkcert) — never commit keys/certs or the local overrides ###
+/certs/
+/compose.override.yml
+/config/

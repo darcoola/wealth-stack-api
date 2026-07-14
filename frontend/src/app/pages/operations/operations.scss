@@ -25,6 +25,48 @@
   }
 }
 
+// ── Mobile: stack the filter controls and confine the wide table to its own scroll area ──
+@media (max-width: 768px) {
+  // Each filter takes a full row so touch targets stay large and nothing gets crushed.
+  .filter-search,
+  .filter-control,
+  .filter-control--date {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .filter-spacer {
+    display: none;
+  }
+
+  .bulk-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .bulk-actions-right {
+    justify-content: flex-end;
+  }
+
+  .description-cell,
+  .info-cell {
+    max-width: 16rem;
+  }
+
+  // Horizontal scroll lives inside the table, so the page body never scrolls sideways.
+  :host ::ng-deep .operations-table {
+    .p-datatable-table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .p-datatable-table {
+      min-width: 60rem;
+    }
+  }
+}
+
 // Consistent sizing for the date-span, account, and group controls so the bar reads as one row
 // of equal-weight filters instead of a jumble of widths.
 .filter-control {

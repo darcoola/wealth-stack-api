@@ -28,3 +28,23 @@ body {
   margin: 0 0 1.5rem;
   color: var(--p-text-muted-color);
 }
+
+/* ── Mobile-wide fixes shared by every routed page ─────────────────────────────
+   styles.scss is global (not view-encapsulated), so these reach into PrimeNG's
+   internal table markup without ::ng-deep. */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.25rem;
+  }
+
+  .page-subtitle {
+    margin-bottom: 1rem;
+  }
+
+  /* Safety net: any data table scrolls within itself instead of pushing the page
+     sideways. Pages with wide tables (Operations, Reports) also set a min-width. */
+  .p-datatable-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

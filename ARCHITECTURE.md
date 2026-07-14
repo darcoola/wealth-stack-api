@@ -359,6 +359,21 @@ as a `main` resources source dir so `processResources` (and thus `bootJar`/`boot
 non-API, non-file paths so Angular's HTML5 deep links survive a refresh; unknown `api` paths still
 404. Skip the whole frontend build with `-PskipFrontend`.
 
+**PWA (installable on mobile):** the app is an installable Progressive Web App via
+`@angular/service-worker`. `provideServiceWorker('ngsw-worker.js', …)` in `app.config.ts` registers
+the worker **only in production builds** (`enabled: !isDevMode()`, so `npm start` on :4200 has no
+SW) and only after the app stabilizes (`registerWhenStable:30000`) so it never delays first paint or
+the Keycloak silent-SSO check. `angular.json` sets `"serviceWorker": "ngsw-config.json"` on the
+`production` config only. `ngsw-config.json` precaches the app shell + hashed JS/CSS and lazily
+caches `/icons/**` and media; it has **no `dataGroups`, so `/api/**` responses are never cached**
+(no stale financial data or cached 401s), and `!/api/**` in `navigationUrls` keeps API paths out of
+the index.html navigation fallback. `public/manifest.webmanifest` (name/theme `#10b981`, standalone,
+`/icons/*`) plus iOS `apple-touch-icon` + `apple-mobile-web-app-*` meta tags in `index.html` cover
+Android and iOS home-screen install. Icons in `public/icons/` were rasterized from `icon.svg`
+(rounded, `purpose:any`) and `icon-maskable.svg` (full-bleed safe-zone, `purpose:maskable`) via
+macOS `sips`. The SW activates only over the served jar (secure-context requirement met by
+`localhost`/HTTPS), so test it with `./gradlew bootRun`, not the dev server.
+
 ## Conventions
 
 - Services and finders are `open class` with `@Transactional` `open fun` (no `@Service`/`@Component`

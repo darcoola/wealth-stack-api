@@ -91,6 +91,34 @@
   margin: 1rem 0;
 }
 
+// ── Mobile: taller-relative charts and a side-scrolling pivot (frozen first column stays) ──
+@media (max-width: 768px) {
+  .controls {
+    gap: 0.5rem;
+
+    p-datepicker,
+    p-select {
+      flex: 1 1 100%;
+    }
+  }
+
+  .chart-wrap {
+    height: 50vh;
+    min-height: 260px;
+  }
+
+  :host ::ng-deep .summary-table {
+    .p-datatable-table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .p-datatable-table {
+      min-width: 48rem;
+    }
+  }
+}
+
 .error-banner,
 .info-banner {
   display: flex;

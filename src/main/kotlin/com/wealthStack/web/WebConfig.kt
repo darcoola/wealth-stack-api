@@ -1,6 +1,10 @@
 package com.wealthStack.web
 
 import com.wealthStack.security.PartyContextArgumentResolver
+import org.springframework.boot.web.server.MimeMappings
+import org.springframework.boot.web.server.WebServerFactoryCustomizer
+import org.springframework.boot.web.server.servlet.ConfigurableServletWebServerFactory
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
 import org.springframework.core.io.Resource
@@ -25,6 +29,20 @@ class WebConfig(
     override fun addArgumentResolvers(resolvers: MutableList<HandlerMethodArgumentResolver>) {
         resolvers.add(partyContextArgumentResolver)
     }
+
+    /**
+     * Serve the PWA manifest with its correct media type. `.webmanifest` is absent from the servlet
+     * container's default MIME map, so it would otherwise be sent as `application/octet-stream`;
+     * `ResourceHttpRequestHandler` consults these servlet mappings first when choosing a content
+     * type. Chrome/Android want `application/manifest+json` for a clean installable PWA.
+     */
+    @Bean
+    fun webManifestMimeMapping(): WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> =
+        WebServerFactoryCustomizer { factory ->
+            val mappings = MimeMappings(MimeMappings.DEFAULT)
+            mappings.add("webmanifest", "application/manifest+json")
+            factory.setMimeMappings(mappings)
+        }
 
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
         registry

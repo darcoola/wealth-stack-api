@@ -24,6 +24,7 @@
           [text]="true"
           severity="secondary"
           icon="pi pi-user"
+          styleClass="user-menu-btn"
           [label]="partyContext.activeParty()?.name ?? auth.displayName"
           ariaLabel="User menu"
           (onClick)="userMenu.toggle($event)" />
@@ -32,9 +33,12 @@
     </div>
   </header>
 
-  <aside class="layout-sidebar">
+  <aside class="layout-sidebar" (click)="closeSidebarOnMobile()">
     <p-menu [model]="menuItems" styleClass="layout-menu" />
   </aside>
+
+  <!-- Dims the content behind the drawer on mobile; tap to dismiss. Hidden on desktop via CSS. -->
+  <div class="layout-backdrop" (click)="closeSidebarOnMobile()"></div>
 
   <main class="layout-content">
     <router-outlet />
