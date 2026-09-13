@@ -72,4 +72,17 @@
       [loading]="deleting()"
       (onClick)="removeAllOperations()" />
   </div>
+
+  <div class="panel-action">
+    <div class="action-copy">
+      <strong>Delete all data</strong>
+      <span>Permanently deletes everything — operations, categories, groups and account mappings. Export a backup first if you may want it back.</span>
+    </div>
+    <p-button
+      label="Delete all data"
+      icon="pi pi-times-circle"
+      severity="danger"
+      [loading]="clearing()"
+      (onClick)="clearAllData()" />
+  </div>
 </section>

@@ -4,6 +4,7 @@ import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 
-/** Whole-dataset export / import — see [DataBackupService] for the merge and replace semantics. */
+/** Whole-dataset export / import / wipe — see [DataBackupService] for the merge and replace semantics. */
 @RestController
 @RequestMapping("/api/v1/data")
 class DataBackupController(private val service: DataBackupService) {
@@ -40,4 +41,8 @@ class DataBackupController(private val service: DataBackupService) {
             ResponseEntity.internalServerError().body(mapOf("error" to (e.message ?: "Unexpected error")))
         }
     }
+
+    /** Deletes ALL data — operations, categories, groups and account mappings — leaving an empty installation. */
+    @DeleteMapping
+    fun clearAll(): DataClearResult = service.clearAll()
 }

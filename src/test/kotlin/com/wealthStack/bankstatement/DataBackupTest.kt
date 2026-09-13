@@ -11,6 +11,7 @@ import com.wealthStack.bankstatement.search.BankingOperationSearchRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
@@ -18,6 +19,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.web.client.RestTemplate
@@ -222,5 +224,23 @@ class DataBackupTest {
 
         assertThat(result["operationsImported"]).isEqualTo(4)
         assertThat(operationRepository.findAll().size).isEqualTo(4)
+    }
+
+    @Test
+    fun `clearing all data leaves an empty installation`() {
+        seed()
+
+        val result = RestTemplate().exchange(
+            "http://localhost:$port/api/v1/data", HttpMethod.DELETE, null, Map::class.java
+        ).body!!
+
+        assertThat(result["operationsDeleted"]).isEqualTo(4)
+        assertThat(result["categoriesDeleted"]).isEqualTo(2)
+        assertThat(result["categoryGroupsDeleted"]).isEqualTo(2)
+        assertThat(operationRepository.count()).isEqualTo(0L)
+        assertThat(categoryRepository.count()).isEqualTo(0L)
+        assertThat(categoryGroupRepository.count()).isEqualTo(0L)
+        assertThat(accountMappingRepository.count()).isEqualTo(0L)
+        verify(autoCategorizationService).clearIndex()
     }
 }

@@ -189,6 +189,10 @@ Whole-dataset backup for moving data between installations (`DataBackupControlle
     via `AutoCategorizationService.clearIndex`), leaving exactly the backup's content.
   Loaded categorized operations are indexed into ES like any import. Raw accounts without a mapping in
   the file get one auto-created, as after a statement import.
+- `DELETE /api/v1/data` → `DataBackupService.clearAll`: the replace mode's wipe on its own — deletes every
+  operation, category, group and mapping and clears the ES index, returning a `DataClearResult`
+  (`operationsDeleted` / `categoriesDeleted` / `categoryGroupsDeleted` / `accountMappingsDeleted`). The
+  seed groups are not re-created.
 
 ### Duplicate detection
 Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
@@ -308,8 +312,8 @@ Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, *
 **Groups**, **Import**, **Accounts**, **Reports**, **Administration** (a **Backup** section — *Export
 data* downloads `GET /api/v1/data/export` as a file via `core/data-backup.service.ts`, *Import data*
 reads a chosen `.json` and posts it to `POST /api/v1/data/import` with a Merge/Replace select, Replace
-asking for confirmation — and a danger-zone "Remove all operations" button hitting
-`DELETE .../operations/all`). The Operations table has a server-side filter bar
+asking for confirmation — and a danger zone with "Remove all operations" (`DELETE .../operations/all`)
+and "Delete all data" (`DELETE /api/v1/data`), both confirmed first). The Operations table has a server-side filter bar
 (global search, a date-span range picker, and prefetched **account** and **category-group**
 multiselects — options pulled from the account-mappings and category-groups endpoints); an **Add
 operation** button opens a `p-dialog` form (Expense/Income toggle, positive amount — the toggle sets

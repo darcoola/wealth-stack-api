@@ -20,6 +20,8 @@ import java.time.temporal.ChronoUnit
  *    verification flag are taken from the backup. Local data the file doesn't mention is kept.
  *  - **replace**: every operation, category, group and mapping is deleted first, so the result is
  *    exactly the backup's content.
+ *
+ * [clearAll] does the replace mode's wipe on its own, leaving an empty installation.
  */
 open class DataBackupService(
     private val categoryGroupRepository: CategoryGroupRepository,
@@ -54,6 +56,20 @@ open class DataBackupService(
         }
     )
 
+    /** Deletes every operation, category, group and account mapping, and the category-suggestion index. */
+    @Transactional
+    open fun clearAll(): DataClearResult {
+        val result = DataClearResult(
+            operationsDeleted = operationRepository.count(),
+            categoriesDeleted = categoryRepository.count(),
+            categoryGroupsDeleted = categoryGroupRepository.count(),
+            accountMappingsDeleted = accountMappingRepository.count()
+        )
+        deleteAllRows()
+        autoCategorizationService.clearIndex()
+        return result
+    }
+
     @Transactional
     open fun importBackup(backup: DataBackup, replace: Boolean): DataImportResult {
         require(backup.format == DataBackup.FORMAT) { "This file is not a WealthStack backup" }
@@ -61,12 +77,7 @@ open class DataBackupService(
             "Unsupported backup version ${backup.version} (this installation reads version ${DataBackup.VERSION})"
         }
 
-        if (replace) {
-            operationRepository.deleteAllInBatch()
-            categoryRepository.deleteAllInBatch()
-            categoryGroupRepository.deleteAllInBatch()
-            accountMappingRepository.deleteAllInBatch()
-        }
+        if (replace) deleteAllRows()
 
         val groups = categoryGroupRepository.findAll().associateByTo(HashMap()) { it.name }
         var groupsCreated = 0
@@ -181,5 +192,13 @@ open class DataBackupService(
             operationsImported = imported,
             operationsOverwritten = overwritten
         )
+    }
+
+    /** Operations first, then categories (operations reference them), then groups (categories reference them). */
+    private fun deleteAllRows() {
+        operationRepository.deleteAllInBatch()
+        categoryRepository.deleteAllInBatch()
+        categoryGroupRepository.deleteAllInBatch()
+        accountMappingRepository.deleteAllInBatch()
     }
 }

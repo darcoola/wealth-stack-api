@@ -22,6 +22,7 @@ export class Administration {
   private readonly backupUpload = viewChild<FileUpload>('backupUpload');
 
   protected readonly deleting = signal(false);
+  protected readonly clearing = signal(false);
   protected readonly exporting = signal(false);
   protected readonly importing = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -103,6 +104,26 @@ export class Administration {
       error: (err) => {
         this.error.set(this.message(err, 'Could not delete operations. Is the backend running?'));
         this.deleting.set(false);
+      },
+    });
+  }
+
+  protected clearAllData(): void {
+    if (!confirm('Delete ALL data? Every operation, category, group and account mapping is permanently removed. This cannot be undone.')) {
+      return;
+    }
+    this.startAction(this.clearing);
+    this.backup.clearAll().subscribe({
+      next: (r) => {
+        this.result.set(
+          `Deleted ${r.operationsDeleted} operations, ${r.categoriesDeleted} categories, ${r.categoryGroupsDeleted} groups ` +
+            `and ${r.accountMappingsDeleted} account mappings.`
+        );
+        this.clearing.set(false);
+      },
+      error: (err) => {
+        this.error.set(this.message(err, 'Could not delete data. Is the backend running?'));
+        this.clearing.set(false);
       },
     });
   }

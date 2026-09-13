@@ -12,3 +12,6 @@ POST http://localhost:8088/api/v1/data/import?replace=true
 Content-Type: application/json
 
 < ./wealthstack-backup.json
+
+### Delete ALL data (operations, categories, groups, account mappings) — cannot be undone
+DELETE http://localhost:8088/api/v1/data

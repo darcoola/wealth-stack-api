@@ -67,3 +67,11 @@ data class DataImportResult(
     /** Existing operations updated because the backup carried the same operation. */
     val operationsOverwritten: Int
 )
+
+/** Outcome of [DataBackupService.clearAll]: how many rows of each kind were deleted. */
+data class DataClearResult(
+    val operationsDeleted: Long,
+    val categoriesDeleted: Long,
+    val categoryGroupsDeleted: Long,
+    val accountMappingsDeleted: Long
+)

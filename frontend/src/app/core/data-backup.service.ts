@@ -15,7 +15,15 @@ export interface DataImportResult {
   operationsOverwritten: number;
 }
 
-/** Whole-dataset export / import (backend `/api/v1/data`): one JSON file with everything. */
+/** Row counts removed by a full wipe, mirroring the backend `DataClearResult`. */
+export interface DataClearResult {
+  operationsDeleted: number;
+  categoriesDeleted: number;
+  categoryGroupsDeleted: number;
+  accountMappingsDeleted: number;
+}
+
+/** Whole-dataset export / import / wipe (backend `/api/v1/data`): one JSON file with everything. */
 @Injectable({ providedIn: 'root' })
 export class DataBackupService {
   private readonly http = inject(HttpClient);
@@ -37,6 +45,11 @@ export class DataBackupService {
       params: { replace },
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  /** Deletes ALL data: operations, categories, groups and account mappings. */
+  clearAll(): Observable<DataClearResult> {
+    return this.http.delete<DataClearResult>(this.baseUrl);
   }
 
   private static fileName(disposition: string | null): string {
