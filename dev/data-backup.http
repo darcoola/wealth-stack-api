@@ -1,0 +1,14 @@
+### Export everything as a backup file (groups, categories, account mappings, operations)
+GET http://localhost:8088/api/v1/data/export
+
+### Import a backup, merging it into existing data (the file wins on matches; re-importing is a no-op)
+POST http://localhost:8088/api/v1/data/import
+Content-Type: application/json
+
+< ./wealthstack-backup.json
+
+### Import a backup, replacing ALL existing data first
+POST http://localhost:8088/api/v1/data/import?replace=true
+Content-Type: application/json
+
+< ./wealthstack-backup.json

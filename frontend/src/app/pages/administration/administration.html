@@ -15,10 +15,53 @@
   </div>
 }
 
-<section class="danger-zone">
+<section class="panel">
+  <h2>Backup</h2>
+  <div class="panel-action">
+    <div class="action-copy">
+      <strong>Export data</strong>
+      <span>Downloads every operation, category, group and account mapping as one JSON file — keep it as a backup or load it into another WealthStack installation.</span>
+    </div>
+    <p-button label="Export data" icon="pi pi-download" [loading]="exporting()" (onClick)="exportData()" />
+  </div>
+
+  <div class="panel-action">
+    <div class="action-copy">
+      <strong>Import data</strong>
+      <span>
+        Loads a WealthStack backup file. <em>Merge</em> adds it to what is already here — where both have the same
+        entry the file wins, and importing the same file twice changes nothing. <em>Replace</em> deletes all current
+        data first.
+      </span>
+      <p-select
+        [options]="importModes"
+        optionLabel="label"
+        optionValue="id"
+        [ngModel]="importMode()"
+        (ngModelChange)="importMode.set($event)"
+        ariaLabel="Import mode"
+        styleClass="mode-select" />
+    </div>
+    <p-fileupload
+      #backupUpload
+      mode="basic"
+      accept=".json,application/json"
+      [customUpload]="true"
+      [auto]="true"
+      chooseLabel="Import data"
+      chooseIcon="pi pi-upload"
+      [disabled]="importing()"
+      (uploadHandler)="importData($event)" />
+  </div>
+  @if (importing()) {
+    <p class="busy"><i class="pi pi-spin pi-spinner"></i> Importing…</p>
+  }
+</section>
+
+<section class="panel danger-zone">
   <h2>Danger zone</h2>
-  <div class="danger-action">
-    <div class="danger-copy">
+  <div class="panel-action">
+    <div class="action-copy">
       <strong>Remove all operations</strong>
       <span>Permanently deletes every imported operation. Account mappings, categories and groups are kept.</span>
     </div>

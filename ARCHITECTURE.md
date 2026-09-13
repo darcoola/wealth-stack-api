@@ -166,6 +166,30 @@ it must name a category that already exists in the dictionary or the whole impor
 "require it to exist" rule for both ingest paths (the parsers/JSON only stash the name on the
 transient `BankingOperation.categoryName` carrier). Raw bank parsers never set a category.
 
+### Data export / import (command side)
+Whole-dataset backup for moving data between installations (`DataBackupController` →
+`DataBackupService`, DTOs in `DataBackup.kt`):
+- `GET /api/v1/data/export` → a `DataBackup` JSON attachment (`wealthstack-backup-<date>.json`):
+  `format` = `wealthstack-backup`, `version` = 1, `exportedAt`, then `categoryGroups` (`name`),
+  `categories` (`name`, `group` name), `accountMappings` (`rawAccount`, `displayName`) and `operations`
+  (`date`, `description`, signed `amount`, `bankName`, `account`, `category` name, `additionalInfo`,
+  `sourceFileName`, `needsVerification`, `occurrence`). Entries reference each other by **natural keys,
+  never database ids**, so a file restores into any installation; `type` and `accountDisplayName` are
+  derived again on import.
+- `POST /api/v1/data/import?replace=false|true` (JSON body = the backup file) → `DataImportResult`
+  (created groups/categories/mappings, `operationsImported` / `operationsOverwritten`). One transaction:
+  a wrong `format`/`version`, a reference to an unknown group or category, or the same
+  `(fingerprint, occurrence)` twice fails with **400 and changes nothing**.
+  - **merge** (default): groups/categories match by name, mappings by raw account, operations by their
+    duplicate-detection identity (fingerprint recomputed from the content + the file's `occurrence`), so
+    re-importing the same file is a no-op. On a match the **file wins** (a category's group, a mapping's
+    display name — back-filled onto local operations —, an operation's category/note/provenance/
+    verification flag); local data the file doesn't mention is kept.
+  - **replace**: deletes all operations, categories, groups and mappings first (and clears the ES index
+    via `AutoCategorizationService.clearIndex`), leaving exactly the backup's content.
+  Loaded categorized operations are indexed into ES like any import. Raw accounts without a mapping in
+  the file get one auto-created, as after a statement import.
+
 ### Duplicate detection
 Bank exports carry no stable transaction id, so identity is content-derived (`OperationFingerprint`):
 SHA-256 of `bankName | account | date | amount | description`. `category` is **excluded** (it is a
@@ -281,8 +305,11 @@ frontend/
 ```
 
 Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, **Categories**,
-**Groups**, **Import**, **Accounts**, **Reports**, **Administration** (maintenance actions — today a
-"Remove all operations" danger-zone button hitting `DELETE .../operations/all`). The Operations table has a server-side filter bar
+**Groups**, **Import**, **Accounts**, **Reports**, **Administration** (a **Backup** section — *Export
+data* downloads `GET /api/v1/data/export` as a file via `core/data-backup.service.ts`, *Import data*
+reads a chosen `.json` and posts it to `POST /api/v1/data/import` with a Merge/Replace select, Replace
+asking for confirmation — and a danger-zone "Remove all operations" button hitting
+`DELETE .../operations/all`). The Operations table has a server-side filter bar
 (global search, a date-span range picker, and prefetched **account** and **category-group**
 multiselects — options pulled from the account-mappings and category-groups endpoints); an **Add
 operation** button opens a `p-dialog` form (Expense/Income toggle, positive amount — the toggle sets

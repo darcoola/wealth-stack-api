@@ -150,4 +150,19 @@ class BankStatementConfig {
     @Bean
     fun reportQueryController(finder: ReportFinder): ReportQueryController =
         ReportQueryController(finder)
+
+    @Bean
+    fun dataBackupService(
+        categoryGroupRepository: CategoryGroupRepository,
+        categoryRepository: CategoryRepository,
+        accountMappingRepository: AccountMappingRepository,
+        operationRepository: BankingOperationRepository,
+        autoCategorizationService: AutoCategorizationService
+    ): DataBackupService = DataBackupService(
+        categoryGroupRepository, categoryRepository, accountMappingRepository, operationRepository, autoCategorizationService
+    )
+
+    @Bean
+    fun dataBackupController(service: DataBackupService): DataBackupController =
+        DataBackupController(service)
 }

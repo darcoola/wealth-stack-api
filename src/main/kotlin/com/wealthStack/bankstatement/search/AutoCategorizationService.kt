@@ -31,6 +31,11 @@ open class AutoCategorizationService(
         }
     }
 
+    /** Drops every indexed operation, e.g. when a backup restore replaces all data. */
+    open fun clearIndex() {
+        searchRepository.deleteAll()
+    }
+
     open fun predictCategory(operation: BankingOperation): Category? {
         // Simple search on description and account
         val query = NativeQuery.builder()
