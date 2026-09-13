@@ -1,8 +1,11 @@
-### Get all operations from DB
-GET http://localhost:8080/api/v1/bank-statements
+### Get operations (paginated; defaults to the first page)
+GET http://localhost:8088/api/v1/bank-statements?page=0&size=50&sort=date,desc
 
-### Import mBank statement
-POST http://localhost:8080/api/v1/bank-statements
+### Get operations with every filter (all optional; accounts / groupIds can repeat)
+GET http://localhost:8088/api/v1/bank-statements?globalFilter=biedronka&needsVerificationOnly=false&uncategorizedOnly=false&accounts=ACME%20111&unmappedAccount=false&groupIds=1&dateFrom=2024-01-01&dateTo=2024-12-31&page=0&size=50&sort=date,desc
+
+### Import a statement file with an explicit bank (omit bankName to auto-detect it)
+POST http://localhost:8088/api/v1/bank-statements
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
@@ -18,7 +21,7 @@ Content-Type: text/csv
 --boundary--
 
 ### Import already-prepared operation rows as JSON (historical data / unparsed bank)
-POST http://localhost:8080/api/v1/bank-statements/operations
+POST http://localhost:8088/api/v1/bank-statements/operations
 Content-Type: application/json
 
 {
@@ -29,10 +32,23 @@ Content-Type: application/json
     { "date": "2024-01-16", "description": "Groceries", "amount": -120.50, "account": "ACME 111" }
   ]
 }
-# NOTE: a non-blank "category" must already exist in the dictionary (POST /api/v1/categories) or the import is rejected (400).
+
+### NOTE: a non-blank "category" must already exist in the dictionary (POST /api/v1/categories) or the import is rejected (400).
+
+### Add a hand-entered cash operation (negative amount = expense; categoryId / additionalInfo optional)
+POST http://localhost:8088/api/v1/bank-statements/operations/manual
+Content-Type: application/json
+
+{ "date": "2024-01-17", "description": "Coffee", "amount": -12.00, "categoryId": 1, "additionalInfo": "with a friend" }
+
+### Add the same cash operation again anyway (an identical entry returns 409 unless forced)
+POST http://localhost:8088/api/v1/bank-statements/operations/manual
+Content-Type: application/json
+
+{ "date": "2024-01-17", "description": "Coffee", "amount": -12.00, "force": true }
 
 ### Import prepared rows via the predefined CSV schema (bankName=manual selects the generic parser)
-POST http://localhost:8080/api/v1/bank-statements
+POST http://localhost:8088/api/v1/bank-statements
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
@@ -50,7 +66,7 @@ date,bankName,account,description,amount,displayName,category
 --boundary--
 
 ### Import with unsupported bank (expect 400)
-POST http://localhost:8080/api/v1/bank-statements
+POST http://localhost:8088/api/v1/bank-statements
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary

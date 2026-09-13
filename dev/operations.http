@@ -1,0 +1,44 @@
+### Assign a category to an operation (replace ids with real ones)
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
+Content-Type: application/json
+
+{ "categoryId": 1 }
+
+### Clear an operation's category (back to Uncategorized)
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
+Content-Type: application/json
+
+{ "categoryId": null }
+
+### Assign a category to many operations at once (categoryId null clears it)
+PUT http://localhost:8088/api/v1/bank-statements/operations/category
+Content-Type: application/json
+
+{ "operationIds": [1, 2, 3], "categoryId": 1 }
+
+### Set an operation's free-text note (blank or null clears it)
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/additional-info
+Content-Type: application/json
+
+{ "additionalInfo": "weekly shop" }
+
+### Accept the auto-assigned (predicted) category of one operation
+PUT http://localhost:8088/api/v1/bank-statements/operations/1/verify
+
+### Accept the predicted categories of many operations
+PUT http://localhost:8088/api/v1/bank-statements/operations/verify
+Content-Type: application/json
+
+{ "operationIds": [1, 2, 3] }
+
+### Re-index every categorized operation into the category-suggestion search index
+POST http://localhost:8088/api/v1/bank-statements/operations/sync
+
+### Delete selected operations permanently
+DELETE http://localhost:8088/api/v1/bank-statements/operations
+Content-Type: application/json
+
+{ "operationIds": [1, 2, 3] }
+
+### Delete ALL operations (mappings, categories and groups are kept) — cannot be undone
+DELETE http://localhost:8088/api/v1/bank-statements/operations/all

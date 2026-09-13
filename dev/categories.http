@@ -1,65 +1,86 @@
 ### List all categories
 GET http://localhost:8088/api/v1/categories
 
-### Create a category
+### Create a category (groupId optional; omit or null = Ungrouped)
 POST http://localhost:8088/api/v1/categories
 Content-Type: application/json
 
-{ "name": "Groceries" }
+{ "name": "Groceries", "groupId": 1 }
 
-### Create multiple categories
+### Create the Spending / Income / Others groups (only needed on an empty installation — a group that already exists is rejected)
+POST http://localhost:8088/api/v1/category-groups
+Content-Type: application/json
+
+{ "name": "Spending" }
+
+###
+POST http://localhost:8088/api/v1/category-groups
+Content-Type: application/json
+
+{ "name": "Income" }
+
+###
+POST http://localhost:8088/api/v1/category-groups
+Content-Type: application/json
+
+{ "name": "Others" }
+
+### Look up the group ids by name (run this before the batch below — it fills {{spendingGroupId}} etc.)
+GET http://localhost:8088/api/v1/category-groups
+
+> {%
+    const groups = response.body;
+    [["Spending", "spendingGroupId"], ["Income", "incomeGroupId"], ["Others", "othersGroupId"]].forEach(([name, variable]) => {
+        const group = groups.find(g => g.name === name);
+        if (group) {
+            client.global.set(variable, group.id);
+        } else {
+            client.log(`No group named '${name}' — create it first`);
+        }
+    });
+%}
+
+### Create multiple categories (run the group lookup above first)
 POST http://localhost:8088/api/v1/categories/batch
 Content-Type: application/json
 
 [
-  { "name": "Dom", "type": "SPENDING" },
-  { "name": "Dzieci", "type": "SPENDING" },
-  { "name": "Dieta (Maczfit)", "type": "SPENDING" },
-  { "name": "Edukacja", "type": "SPENDING" },
-  { "name": "Firma Darek", "type": "INCOME" },
-  { "name": "Firma Kasia", "type": "INCOME" },
-  { "name": "Inwestycje", "type": "OTHERS" },
-  { "name": "Jedzenie/Restauracje", "type": "SPENDING" },
-  { "name": "Mieszkania BemoVita", "type": "OTHERS" },
-  { "name": "Mieszkanie Metro Zachód", "type": "OTHERS" },
-  { "name": "Odzież", "type": "SPENDING" },
-  { "name": "Oprocentowanie / Cashback", "type": "OTHERS" },
-  { "name": "Paliwo", "type": "SPENDING" },
-  { "name": "Podatki Darek", "type": "INCOME" },
-  { "name": "Podatki Kasia", "type": "INCOME" },
-  { "name": "Podróże", "type": "SPENDING" },
-  { "name": "Pożyczka", "type": "OTHERS" },
-  { "name": "Prezenty i Rozrywka", "type": "SPENDING" },
-  { "name": "Przelewy wewnętrzne", "type": "OTHERS" },
-  { "name": "Przychody Darek", "type": "INCOME" },
-  { "name": "Przychody Inne (sprzedaż itp.)", "type": "OTHERS" },
-  { "name": "Przychody Kasia", "type": "INCOME" },
-  { "name": "Samochód", "type": "SPENDING" },
-  { "name": "Sport", "type": "SPENDING" },
-  { "name": "Transport", "type": "SPENDING" },
-  { "name": "Wydatki inne", "type": "SPENDING" },
-  { "name": "Wypłata gotówki", "type": "OTHERS" },
-  { "name": "Zakupy", "type": "SPENDING" },
-  { "name": "Zdrowie i Uroda", "type": "SPENDING" }
+  { "name": "Dom", "groupId": {{spendingGroupId}} },
+  { "name": "Dzieci", "groupId": {{spendingGroupId}} },
+  { "name": "Dieta (Maczfit)", "groupId": {{spendingGroupId}} },
+  { "name": "Edukacja", "groupId": {{spendingGroupId}} },
+  { "name": "Firma Darek", "groupId": {{incomeGroupId}} },
+  { "name": "Firma Kasia", "groupId": {{incomeGroupId}} },
+  { "name": "Inwestycje", "groupId": {{othersGroupId}} },
+  { "name": "Jedzenie/Restauracje", "groupId": {{spendingGroupId}} },
+  { "name": "Mieszkania BemoVita", "groupId": {{othersGroupId}} },
+  { "name": "Mieszkanie Metro Zachód", "groupId": {{othersGroupId}} },
+  { "name": "Odzież", "groupId": {{spendingGroupId}} },
+  { "name": "Oprocentowanie / Cashback", "groupId": {{othersGroupId}} },
+  { "name": "Paliwo", "groupId": {{spendingGroupId}} },
+  { "name": "Podatki Darek", "groupId": {{incomeGroupId}} },
+  { "name": "Podatki Kasia", "groupId": {{incomeGroupId}} },
+  { "name": "Podróże", "groupId": {{spendingGroupId}} },
+  { "name": "Pożyczka", "groupId": {{othersGroupId}} },
+  { "name": "Prezenty i Rozrywka", "groupId": {{spendingGroupId}} },
+  { "name": "Przelewy wewnętrzne", "groupId": {{othersGroupId}} },
+  { "name": "Przychody Darek", "groupId": {{incomeGroupId}} },
+  { "name": "Przychody Inne (sprzedaż itp.)", "groupId": {{othersGroupId}} },
+  { "name": "Przychody Kasia", "groupId": {{incomeGroupId}} },
+  { "name": "Samochód", "groupId": {{spendingGroupId}} },
+  { "name": "Sport", "groupId": {{spendingGroupId}} },
+  { "name": "Transport", "groupId": {{spendingGroupId}} },
+  { "name": "Wydatki inne", "groupId": {{spendingGroupId}} },
+  { "name": "Wypłata gotówki", "groupId": {{othersGroupId}} },
+  { "name": "Zakupy", "groupId": {{spendingGroupId}} },
+  { "name": "Zdrowie i Uroda", "groupId": {{spendingGroupId}} }
 ]
 
-### Rename a category (replace 1 with a real id)
+### Rename / regroup a category (replace 1 with a real id; groupId null = Ungrouped)
 PUT http://localhost:8088/api/v1/categories/1
 Content-Type: application/json
 
-{ "name": "Food" }
+{ "name": "Food", "groupId": 1 }
 
 ### Delete a category (operations using it become Uncategorized)
 DELETE http://localhost:8088/api/v1/categories/1
-
-### Assign a category to an operation (replace ids with real ones)
-PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
-Content-Type: application/json
-
-{ "categoryId": 1 }
-
-### Clear an operation's category (back to Uncategorized)
-PUT http://localhost:8088/api/v1/bank-statements/operations/1/category
-Content-Type: application/json
-
-{ "categoryId": null }

@@ -1,0 +1,17 @@
+### List all category groups
+GET http://localhost:8088/api/v1/category-groups
+
+### Create a category group
+POST http://localhost:8088/api/v1/category-groups
+Content-Type: application/json
+
+{ "name": "Spending" }
+
+### Rename a category group (replace 1 with a real id)
+PUT http://localhost:8088/api/v1/category-groups/1
+Content-Type: application/json
+
+{ "name": "Expenses" }
+
+### Delete a category group (its categories become Ungrouped)
+DELETE http://localhost:8088/api/v1/category-groups/1

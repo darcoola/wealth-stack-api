@@ -1,5 +1,5 @@
 ### Get all account mappings
-GET http://localhost:8080/api/v1/account-mappings
+GET http://localhost:8088/api/v1/account-mappings
 
 ### Create account mapping
 POST http://localhost:8088/api/v1/account-mappings
@@ -28,3 +28,15 @@ Content-Type: application/json
     "displayName": "Firmowe mBank"
   }
 ]
+
+### Update an account mapping (replace 1 with a real id; back-fills the display name onto its operations)
+PUT http://localhost:8088/api/v1/account-mappings/1
+Content-Type: application/json
+
+{
+  "rawAccount": "mKonto Intensive 5611 ... 1026",
+  "displayName": "mBank main account"
+}
+
+### Delete an account mapping (its operations revert to the raw account)
+DELETE http://localhost:8088/api/v1/account-mappings/1
