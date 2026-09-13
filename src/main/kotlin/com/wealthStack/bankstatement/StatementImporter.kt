@@ -13,6 +13,12 @@ open class StatementImporter(
     private val autoCategorizationService: com.wealthStack.bankstatement.search.AutoCategorizationService
 ) {
 
+    companion object {
+        /** Bank/account recorded for hand-entered cash rows — there is no bank and no account number. */
+        const val CASH_BANK_NAME = "cash"
+        const val CASH_ACCOUNT = "Cash"
+    }
+
     /**
      * Imports a bank CSV into the given party's ledger. When [bankName] is null/blank the parser is
      * auto-detected from the file content ([StatementParserFactory.detectParser]); an unrecognized
@@ -40,6 +46,63 @@ open class StatementImporter(
         val source = request.source?.takeIf { it.isNotBlank() }
         val operations = request.operations.map { it.toEntity(request.bankName, source) }
         return persist(partyId, operations, request.bankName, source)
+    }
+
+    /**
+     * Records a single hand-entered cash operation. Deliberately *not* an import: it never folds onto
+     * a fingerprint-identical row, because two identical cash spends on the same day (two ×12 PLN
+     * coffees) can be two real operations — the occurrence index just continues past what is stored.
+     *
+     * Two identical entries are, however, far more often a double-submit than a genuine second spend,
+     * so an unforced request that matches an existing operation is rejected with
+     * [DuplicateOperationException] (HTTP 409) carrying the matches; the UI asks the user and re-sends
+     * with `force = true` if they confirm.
+     *
+     * Everything else matches the import pipeline: the cash account gets its [AccountMapping]
+     * auto-created on first use, an operation the user leaves uncategorized is offered a prediction
+     * (flagged `needsVerification`), and the row is indexed to inform future predictions.
+     */
+    @Transactional
+    open fun addCashOperation(partyId: Long, request: NewOperationRequest): BankingOperation {
+        val description = request.description.trim()
+        require(description.isNotEmpty()) { "Description is required" }
+
+        val operation = BankingOperation(
+            date = request.date,
+            description = description,
+            amount = request.amount,
+            type = if (request.amount >= BigDecimal.ZERO) OperationType.CREDIT else OperationType.DEBIT,
+            bankName = CASH_BANK_NAME,
+            account = CASH_ACCOUNT,
+            additionalInfo = request.additionalInfo?.trim()?.takeIf { it.isNotEmpty() },
+            partyId = partyId
+        )
+        operation.fingerprint = OperationFingerprint.of(operation)
+
+        // Identity fields only (date, amount, description) — the note and category are not part of
+        // the fingerprint, so re-typing the same spend with a different note still counts as a match.
+        val existing = repository.findAllByPartyIdAndFingerprintIn(partyId, setOf(operation.fingerprint))
+        if (existing.isNotEmpty() && request.force != true) {
+            throw DuplicateOperationException(existing)
+        }
+        operation.occurrence = existing.maxOfOrNull { it.occurrence }?.plus(1) ?: 0
+
+        applyAccountMappings(partyId, listOf(operation))
+
+        if (request.categoryId != null) {
+            operation.category = categoryRepository.findById(request.categoryId)
+                .filter { it.partyId == partyId }
+                .orElseThrow { IllegalArgumentException("Unknown category ${request.categoryId}") }
+        } else {
+            autoCategorizationService.predictCategory(operation)?.let {
+                operation.category = it
+                operation.needsVerification = true
+            }
+        }
+
+        val saved = repository.save(operation)
+        autoCategorizationService.indexOperations(listOf(saved))
+        return saved
     }
 
     private fun persist(

@@ -196,6 +196,23 @@ parser. `StatementImporter.importOperations` builds entities (deriving `type` fr
 fingerprint → duplicate-overwrite → `saveAll` pipeline (`persist`) as parsed statements, so re-sends
 fold onto the same rows. Returns the same `ImportResult`.
 
+### Hand-entered cash operations (command side)
+`BankStatementController` `POST /api/v1/bank-statements/operations/manual` (JSON `NewOperationRequest`:
+`date`, `description`, signed `amount`, optional `categoryId`/`additionalInfo`/`force`) →
+`StatementImporter.addCashOperation` → the created row as an `OperationDto`. Backs the Operations
+page's **Add operation** form: cash spending/income that no statement will ever carry. There is no
+bank or account in the payload — the row is booked on the party's cash account
+(`StatementImporter.CASH_BANK_NAME` = `cash` / `CASH_ACCOUNT` = `Cash`), whose `AccountMapping` is
+auto-created on first use like any other.
+
+It reuses the import pipeline's account mapping, auto-categorization (an entry left uncategorized gets
+a predicted category flagged `needsVerification`) and ES indexing, but **not** its duplicate-overwrite
+rule — two identical cash spends on the same day can be two real operations, so it always inserts,
+continuing the `occurrence` index past the stored rows. Since an identical entry is nonetheless more
+often a double-submit, an unforced request whose fingerprint matches existing rows is refused with
+**409** (`DuplicateOperationException` → `{ error, duplicates: [OperationDto] }`); the UI shows the
+matches and re-sends with `force: true` when the user confirms.
+
 **Manual imports may carry a category** (the `category` JSON field above, or a `category` CSV column);
 it must name a category that already exists in the dictionary or the whole import is rejected (HTTP
 400). Resolution happens in `persist` (`resolveCategories`), the single place that enforces the
@@ -331,7 +348,12 @@ Menu items (left nav, in `app.ts` `menuItems`): **Dashboard**, **Operations**, *
 **Groups**, **Import**, **Accounts**, **Reports**, **Household**, **Administration** (maintenance
 actions — today a "Remove all operations" danger-zone button hitting `DELETE .../operations/all`). The Operations table has a server-side filter bar
 (global search, a date-span range picker, and prefetched **account** and **category-group**
-multiselects — options pulled from the account-mappings and category-groups endpoints); it assigns a
+multiselects — options pulled from the account-mappings and category-groups endpoints); an **Add
+operation** button opens a `p-dialog` form (Expense/Income toggle, positive amount — the toggle sets
+the sign —, date, description, optional category and note) that posts to
+`POST .../operations/manual` for hand-entered cash, goes full-width on phones via the dialog's
+`[breakpoints]`, and on the endpoint's 409 shows the operations it matched and turns Save into
+**Add anyway** (re-sends with `force`); it assigns a
 category per row
 via an inline `p-select` (`PUT .../operations/{id}/category`) and edits the free-text **Info** note
 per row via an inline cell editor (`PUT .../operations/{id}/additional-info`, saved on blur); the

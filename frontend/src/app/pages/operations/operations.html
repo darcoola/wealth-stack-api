@@ -98,6 +98,12 @@
         <span class="filter-spacer"></span>
 
         <p-button
+          class="add-button"
+          label="Add operation"
+          icon="pi pi-plus"
+          (onClick)="openAddDialog()" />
+
+        <p-button
           icon="pi pi-refresh"
           severity="secondary"
           [text]="true"
@@ -248,3 +254,148 @@
     </div>
   </ng-template>
 </p-table>
+
+<!-- Hand-entered cash operation. Full-screen-ish on phones via [breakpoints]; the amount is always
+     typed positive and the Expense/Income choice decides its sign. -->
+<p-dialog
+  header="Add operation"
+  [visible]="addDialogVisible()"
+  (visibleChange)="addDialogVisible.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: '28rem' }"
+  [breakpoints]="{ '768px': '95vw' }"
+  styleClass="add-dialog">
+  <form class="add-form" (ngSubmit)="saveOperation()">
+    <div class="field">
+      <label for="op-direction">Type</label>
+      <p-selectbutton
+        inputId="op-direction"
+        [options]="directionOptions"
+        [ngModel]="form().direction"
+        (ngModelChange)="patchForm({ direction: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        optionLabel="label"
+        optionValue="value"
+        [allowEmpty]="false"
+        styleClass="direction-select" />
+    </div>
+
+    <div class="field">
+      <label for="op-amount">Amount</label>
+      <p-inputnumber
+        inputId="op-amount"
+        [ngModel]="form().amount"
+        (ngModelChange)="patchForm({ amount: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        mode="decimal"
+        [minFractionDigits]="2"
+        [maxFractionDigits]="2"
+        [min]="0"
+        suffix=" PLN"
+        placeholder="0.00 PLN"
+        [fluid]="true" />
+    </div>
+
+    <div class="field">
+      <label for="op-date">Date</label>
+      <p-datepicker
+        inputId="op-date"
+        [ngModel]="form().date"
+        (ngModelChange)="patchForm({ date: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        dateFormat="yy-mm-dd"
+        [maxDate]="today"
+        [readonlyInput]="true"
+        appendTo="body"
+        [fluid]="true" />
+    </div>
+
+    <div class="field">
+      <label for="op-description">Description</label>
+      <input
+        pInputText
+        id="op-description"
+        type="text"
+        [ngModel]="form().description"
+        (ngModelChange)="patchForm({ description: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="e.g. Coffee"
+        autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="op-category">Category</label>
+      <p-select
+        inputId="op-category"
+        [options]="categories()"
+        optionLabel="name"
+        optionValue="id"
+        [ngModel]="form().categoryId"
+        (ngModelChange)="patchForm({ categoryId: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        [showClear]="true"
+        [filter]="true"
+        filterBy="name"
+        placeholder="Uncategorized"
+        appendTo="body"
+        [fluid]="true" />
+      <small class="hint">Leave empty to let WealthStack suggest one from similar operations.</small>
+    </div>
+
+    <div class="field">
+      <label for="op-info">Note</label>
+      <input
+        pInputText
+        id="op-info"
+        type="text"
+        [ngModel]="form().additionalInfo"
+        (ngModelChange)="patchForm({ additionalInfo: $event })"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="Optional"
+        autocomplete="off" />
+    </div>
+
+    @if (addError()) {
+      <div class="error-banner" role="alert">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ addError() }}</span>
+      </div>
+    }
+
+    @if (duplicates().length > 0) {
+      <div class="duplicate-banner" role="alert">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div class="duplicate-text">
+          <strong>You already recorded this.</strong>
+          <ul class="duplicate-list">
+            @for (duplicate of duplicates(); track duplicate.id) {
+              <li>
+                {{ duplicate.date | date: 'yyyy-MM-dd' }} · {{ duplicate.description }} ·
+                {{ duplicate.amount | number: '1.2-2' }} PLN
+              </li>
+            }
+          </ul>
+          <span>Save again to add it anyway, or change the entry.</span>
+        </div>
+      </div>
+    }
+
+    <div class="add-form-actions">
+      <p-button
+        label="Cancel"
+        severity="secondary"
+        [text]="true"
+        type="button"
+        (onClick)="addDialogVisible.set(false)" />
+      <p-button
+        [label]="duplicates().length > 0 ? 'Add anyway' : 'Save'"
+        [icon]="duplicates().length > 0 ? 'pi pi-exclamation-circle' : 'pi pi-check'"
+        [severity]="duplicates().length > 0 ? 'warn' : 'primary'"
+        type="submit"
+        [loading]="saving()"
+        [disabled]="!canSave()" />
+    </div>
+  </form>
+</p-dialog>

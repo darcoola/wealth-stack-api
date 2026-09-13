@@ -17,6 +17,28 @@ export interface Page<T> {
   };
 }
 
+/** A hand-entered cash operation, mirroring the backend `NewOperationRequest`. */
+export interface NewOperation {
+  /** ISO date, `yyyy-MM-dd`. */
+  date: string;
+  description: string;
+  /** Signed: negative = spending, positive = income. */
+  amount: number;
+  categoryId: number | null;
+  additionalInfo: string | null;
+  /**
+   * Confirms a save the backend flagged as a duplicate (same date, amount and description as an
+   * existing operation). Without it such a save is refused with 409 — see {@link DuplicateOperationError}.
+   */
+  force?: boolean;
+}
+
+/** Body of the 409 the backend answers an unconfirmed duplicate entry with. */
+export interface DuplicateOperationError {
+  error: string;
+  duplicates: Operation[];
+}
+
 /** Read access to bank operations. The base path is proxied to the backend in dev. */
 @Injectable({ providedIn: 'root' })
 export class OperationsService {
@@ -25,6 +47,15 @@ export class OperationsService {
 
   getAll(params?: { [param: string]: string | number | boolean | readonly (string | number | boolean)[] }): Observable<Page<Operation>> {
     return this.http.get<Page<Operation>>(this.baseUrl, { params });
+  }
+
+  /**
+   * Records a cash operation typed into the Add-operation form. Creates a new row rather than folding
+   * onto an identical one — but an entry matching an existing operation is refused with 409 until the
+   * caller re-sends it with `force`, so a double-submit doesn't quietly become a second spend.
+   */
+  create(operation: NewOperation): Observable<Operation> {
+    return this.http.post<Operation>(`${this.baseUrl}/operations/manual`, operation);
   }
 
   /** Assigns a category to an operation, or clears it (Uncategorized) when `categoryId` is null. */
