@@ -58,3 +58,4 @@ frontend/.angular/cache/
 
 ### Local environment secrets ###
 .env
+data/
