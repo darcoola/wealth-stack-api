@@ -66,11 +66,11 @@ class ReportFinderTest {
         operationRepository.deleteAll()
         categoryRepository.deleteAll()
         categoryGroupRepository.deleteAll()
-        val income = categoryGroupService.create(1L,"Income")
-        val spending = categoryGroupService.create(1L,"Spending")
-        categoryService.create(1L,"Salary", income.id)
-        categoryService.create(1L,"Groceries", spending.id)
-        importer.importOperations(1L,
+        val income = categoryGroupService.create("Income")
+        val spending = categoryGroupService.create("Spending")
+        categoryService.create("Salary", income.id)
+        categoryService.create("Groceries", spending.id)
+        importer.importOperations(
             ManualOperationsRequest(
                 bankName = "legacy",
                 operations = listOf(
@@ -103,7 +103,7 @@ class ReportFinderTest {
 
     @Test
     fun `totals are the raw signed sum per bucket, not split by debit or credit`() {
-        val rows = reportFinder.categoryMonthlyTotals(1L)
+        val rows = reportFinder.categoryMonthlyTotals()
 
         // Income category sums positive, spending categories sum negative — both taken as-is.
         assertThat(total(rows, "2024-01", "Salary")).isEqualTo(value("5000"))
@@ -113,7 +113,7 @@ class ReportFinderTest {
 
     @Test
     fun `each bucket carries its category group so the frontend can split by group`() {
-        val rows = reportFinder.categoryMonthlyTotals(1L)
+        val rows = reportFinder.categoryMonthlyTotals()
 
         assertThat(bucket(rows, "2024-01", "Salary").groupName).isEqualTo("Income")
         assertThat(bucket(rows, "2024-01", "Groceries").groupName).isEqualTo("Spending")
@@ -121,7 +121,7 @@ class ReportFinderTest {
 
     @Test
     fun `uncategorized rows land in a null-category, null-group bucket`() {
-        val rows = reportFinder.categoryMonthlyTotals(1L)
+        val rows = reportFinder.categoryMonthlyTotals()
 
         val uncategorized = bucket(rows, "2024-01", null)
         assertThat(uncategorized.categoryId).isNull()

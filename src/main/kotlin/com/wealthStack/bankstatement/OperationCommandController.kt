@@ -2,7 +2,6 @@ package com.wealthStack.bankstatement
 
 import com.wealthStack.bankstatement.query.OperationDto
 import com.wealthStack.bankstatement.query.toDto
-import com.wealthStack.security.PartyContext
 import org.springframework.web.bind.annotation.*
 
 /**
@@ -17,44 +16,39 @@ class OperationCommandController(
 ) {
 
     @PutMapping("/{id}/category")
-    fun assignCategory(
-        ctx: PartyContext,
-        @PathVariable id: Long,
-        @RequestBody request: AssignCategoryRequest,
-    ): OperationDto =
-        service.assignToOperation(ctx.partyId, id, request.categoryId).toDto()
+    fun assignCategory(@PathVariable id: Long, @RequestBody request: AssignCategoryRequest): OperationDto =
+        service.assignToOperation(id, request.categoryId).toDto()
 
     @PutMapping("/{id}/additional-info")
     fun updateAdditionalInfo(
-        ctx: PartyContext,
         @PathVariable id: Long,
         @RequestBody request: UpdateAdditionalInfoRequest,
     ): OperationDto =
-        operationService.updateAdditionalInfo(ctx.partyId, id, request.additionalInfo).toDto()
+        operationService.updateAdditionalInfo(id, request.additionalInfo).toDto()
 
     @PutMapping("/category")
-    fun assignCategoryBulk(ctx: PartyContext, @RequestBody request: BulkAssignCategoryRequest): List<OperationDto> =
-        service.assignToOperations(ctx.partyId, request.operationIds, request.categoryId).map { it.toDto() }
+    fun assignCategoryBulk(@RequestBody request: BulkAssignCategoryRequest): List<OperationDto> =
+        service.assignToOperations(request.operationIds, request.categoryId).map { it.toDto() }
 
     @DeleteMapping
-    fun deleteBulk(ctx: PartyContext, @RequestBody request: BulkDeleteRequest) =
-        operationService.deleteAll(ctx.partyId, request.operationIds)
+    fun deleteBulk(@RequestBody request: BulkDeleteRequest) =
+        operationService.deleteAll(request.operationIds)
 
     @DeleteMapping("/all")
-    fun deleteEverything(ctx: PartyContext): Map<String, Long> =
-        mapOf("deletedCount" to operationService.deleteEverything(ctx.partyId))
+    fun deleteEverything(): Map<String, Long> =
+        mapOf("deletedCount" to operationService.deleteEverything())
 
     @PutMapping("/{id}/verify")
-    fun acceptPrediction(ctx: PartyContext, @PathVariable id: Long): OperationDto =
-        service.acceptPrediction(ctx.partyId, id).toDto()
+    fun acceptPrediction(@PathVariable id: Long): OperationDto =
+        service.acceptPrediction(id).toDto()
 
     @PutMapping("/verify")
-    fun acceptPredictionsBulk(ctx: PartyContext, @RequestBody request: BulkVerifyRequest): List<OperationDto> =
-        service.acceptPredictions(ctx.partyId, request.operationIds).map { it.toDto() }
+    fun acceptPredictionsBulk(@RequestBody request: BulkVerifyRequest): List<OperationDto> =
+        service.acceptPredictions(request.operationIds).map { it.toDto() }
 
     @PostMapping("/sync")
-    fun syncToSearch(ctx: PartyContext): Map<String, Int> =
-        mapOf("syncedCount" to service.syncCategorizedOperationsToSearch(ctx.partyId))
+    fun syncToSearch(): Map<String, Int> =
+        mapOf("syncedCount" to service.syncCategorizedOperationsToSearch())
 }
 
 data class AssignCategoryRequest(val categoryId: Long?)

@@ -6,7 +6,7 @@ import java.time.LocalDate
 /**
  * A single operation the user types into the UI's Add-operation form — cash spending or income that
  * no bank statement will ever carry. The bank/account are not part of the payload: hand-entered rows
- * are always booked on the party's cash account (see [StatementImporter.addCashOperation]).
+ * are always booked on the cash account (see [StatementImporter.addCashOperation]).
  *
  * Unlike [ManualOperationsRequest] this is not an import: it never folds onto an existing row.
  */

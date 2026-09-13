@@ -40,12 +40,12 @@ class DuplicateImportTest {
 
     @Test
     fun `re-importing the same statement overwrites instead of duplicating`() {
-        val first = importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        val first = importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
         assertThat(first.operationsImported).isEqualTo(3)
         assertThat(first.operationsOverwritten).isEqualTo(0)
         assertThat(operationRepository.findAll()).hasSize(3)
 
-        val second = importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        val second = importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
         assertThat(second.operationsImported).isEqualTo(0)
         assertThat(second.operationsOverwritten).isEqualTo(3)
         // No duplicates: the second import folded onto the existing rows.
@@ -54,8 +54,8 @@ class DuplicateImportTest {
 
     @Test
     fun `overwrite keeps a single row per operation and updates its source file`() {
-        importer.importStatement(1L, "mbank", "original.csv", mbankBytes())
-        importer.importStatement(1L, "mbank", "re-export.csv", mbankBytes())
+        importer.importStatement("mbank", "original.csv", mbankBytes())
+        importer.importStatement("mbank", "re-export.csv", mbankBytes())
 
         val all = operationRepository.findAll()
         assertThat(all).hasSize(3)

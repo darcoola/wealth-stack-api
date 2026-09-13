@@ -11,20 +11,3 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Never contacted: Boot resolves the decoder lazily, and HTTP tests import
-          # TestAuth's stub JwtDecoder which takes precedence over this property.
-          issuer-uri: http://localhost:8081/realms/wealthstack
-
-wealthstack:
-  auth:
-    url: http://localhost:8081
-    realm: wealthstack
-    client-id: wealthstack-web
-  bootstrap:
-    # TestAuth derives emails as <sub>@test.local, so the sub "owner" exercises bootstrap
-    # adoption of the well-known party 1 in tests.
-    owner-email: owner@test.local

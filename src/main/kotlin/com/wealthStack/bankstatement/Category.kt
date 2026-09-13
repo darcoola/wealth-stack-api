@@ -10,21 +10,14 @@ import jakarta.persistence.*
  * summed as-is (no debit/credit split). A future `parentId` would turn this into a subcategory tree.
  */
 @Entity
-@Table(
-    name = "categories",
-    uniqueConstraints = [UniqueConstraint(name = "uk_categories_name", columnNames = ["party_id", "name"])]
-)
+@Table(name = "categories")
 class Category(
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     var name: String,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     var group: CategoryGroup? = null,
-
-    /** Owning party — names are unique per party, not globally. */
-    @Column(name = "party_id", nullable = false)
-    var partyId: Long = 0,
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -19,17 +19,6 @@
         [icon]="darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
         ariaLabel="Toggle dark mode"
         (onClick)="toggleDarkMode()" />
-      @if (auth.isAuthenticated()) {
-        <p-button
-          [text]="true"
-          severity="secondary"
-          icon="pi pi-user"
-          styleClass="user-menu-btn"
-          [label]="partyContext.activeParty()?.name ?? auth.displayName"
-          ariaLabel="User menu"
-          (onClick)="userMenu.toggle($event)" />
-        <p-menu #userMenu [model]="userMenuItems()" [popup]="true" appendTo="body" />
-      }
     </div>
   </header>
 

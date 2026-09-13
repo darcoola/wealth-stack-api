@@ -124,16 +124,4 @@
     padding: 1rem 0.875rem;
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
-
-  // The party-name label crowds the header on phones; the icon + user menu still convey it.
-  :host ::ng-deep .user-menu-btn .p-button-label {
-    display: none;
-  }
-}
-
-// Highlights the currently active party in the user menu (menu renders in an overlay,
-// so the rule must be global-ish via ::ng-deep on the appended-to-body panel).
-::ng-deep .active-party > .p-menu-item-content {
-  font-weight: 600;
-  color: var(--p-primary-color);
 }

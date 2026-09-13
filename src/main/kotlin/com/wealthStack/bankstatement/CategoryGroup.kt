@@ -9,17 +9,10 @@ import jakarta.persistence.*
  * (Ungrouped), the way an operation may be Uncategorized.
  */
 @Entity
-@Table(
-    name = "category_groups",
-    uniqueConstraints = [UniqueConstraint(name = "uk_category_groups_name", columnNames = ["party_id", "name"])]
-)
+@Table(name = "category_groups")
 class CategoryGroup(
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     var name: String,
-
-    /** Owning party — names are unique per party, not globally. */
-    @Column(name = "party_id", nullable = false)
-    var partyId: Long = 0,
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

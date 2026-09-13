@@ -51,11 +51,10 @@ frontend/dist/
 frontend/.angular/
 frontend/.angular/cache/
 
-### Local HTTPS for mobile testing (mkcert) — never commit keys/certs or the local overrides ###
+### Local HTTPS for testing the PWA on a phone (mkcert) — never commit keys/certs or local overrides ###
 /certs/
 /compose.override.yml
 /config/
 
-### Production secrets (see .env.prod.example — that template IS committed, the filled-in file is not) ###
+### Local environment secrets ###
 .env
-.env.prod

@@ -16,11 +16,9 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.context.annotation.Import
-import com.wealthStack.TestAuth
+import org.springframework.web.client.RestTemplate
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestAuth::class)
 class ManualOperationsImportTest {
     @MockitoBean
     lateinit var searchRepository: BankingOperationSearchRepository
@@ -43,7 +41,7 @@ class ManualOperationsImportTest {
 
     private fun post(json: String): Map<*, *>? {
         val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
-        return TestAuth.rest().postForEntity(
+        return RestTemplate().postForEntity(
             "http://localhost:$port/api/v1/bank-statements/operations",
             HttpEntity(json, headers),
             Map::class.java

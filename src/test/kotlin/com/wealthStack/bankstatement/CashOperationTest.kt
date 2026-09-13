@@ -4,7 +4,6 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
-import com.wealthStack.TestAuth
 import com.wealthStack.bankstatement.search.AutoCategorizationService
 import com.wealthStack.bankstatement.search.BankingOperationSearchRepository
 import org.junit.jupiter.api.BeforeEach
@@ -14,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.context.annotation.Import
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -22,11 +20,11 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.client.RestTemplate
 import java.math.BigDecimal
 
 /** The Add-operation form: hand-entered cash rows always insert, never fold onto an existing row. */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestAuth::class)
 class CashOperationTest {
     @MockitoBean
     lateinit var searchRepository: BankingOperationSearchRepository
@@ -52,7 +50,7 @@ class CashOperationTest {
         accountMappingRepository.deleteAll()
     }
 
-    private fun post(json: String) = TestAuth.rest().postForEntity(
+    private fun post(json: String) = RestTemplate().postForEntity(
         "http://localhost:$port/api/v1/bank-statements/operations/manual",
         HttpEntity(json, HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }),
         Map::class.java
@@ -103,9 +101,8 @@ class CashOperationTest {
 
     @Test
     fun `assigns the chosen category without flagging it for verification`() {
-        // Created over HTTP so it lands on the acting party, the one addCashOperation resolves against.
         val name = "Groceries-${System.nanoTime()}"
-        val category = TestAuth.rest().postForEntity(
+        val category = RestTemplate().postForEntity(
             "http://localhost:$port/api/v1/categories",
             HttpEntity("""{ "name": "$name" }""", HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }),
             Map::class.java

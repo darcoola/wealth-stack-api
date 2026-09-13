@@ -2,26 +2,19 @@ package com.wealthStack.bankstatement
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
 import java.math.BigDecimal
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 
 interface BankingOperationRepository : JpaRepository<BankingOperation, Long>, JpaSpecificationExecutor<BankingOperation> {
-    fun findAllByPartyIdAndAccount(partyId: Long, account: String): List<BankingOperation>
+    fun findAllByAccount(account: String): List<BankingOperation>
 
-    fun findAllByPartyIdAndFingerprintIn(partyId: Long, fingerprints: Collection<String>): List<BankingOperation>
+    fun findAllByFingerprintIn(fingerprints: Collection<String>): List<BankingOperation>
 
     fun findAllByCategory(category: Category): List<BankingOperation>
 
-    fun findAllByPartyId(partyId: Long): List<BankingOperation>
-
-    fun countByPartyId(partyId: Long): Long
-
-    fun deleteAllByPartyId(partyId: Long)
-
     /**
-     * Aggregates one party's operations into (month, category) buckets, summing amounts as-is (no
+     * Aggregates every operation into (month, category) buckets, summing amounts as-is (no
      * debit/credit split): spending categories total negative, income categories positive. Carries
      * the category's [CategoryMonthSum.groupId]/[CategoryMonthSum.groupName] so callers/charts split
      * into one section per group instead of by amount sign. `LEFT JOIN` keeps Uncategorized rows
@@ -35,11 +28,10 @@ interface BankingOperationRepository : JpaRepository<BankingOperation, Long>, Jp
                g.id AS groupId, g.name AS groupName,
                COALESCE(SUM(o.amount), 0) AS total
         FROM BankingOperation o LEFT JOIN o.category c LEFT JOIN c.group g
-        WHERE o.partyId = :partyId
         GROUP BY function('to_char', o.date, 'YYYY-MM'), c.id, c.name, g.id, g.name
         """
     )
-    fun aggregateByMonthAndCategory(@Param("partyId") partyId: Long): List<CategoryMonthSum>
+    fun aggregateByMonthAndCategory(): List<CategoryMonthSum>
 }
 
 /** Projection for [BankingOperationRepository.aggregateByMonthAndCategory]. */

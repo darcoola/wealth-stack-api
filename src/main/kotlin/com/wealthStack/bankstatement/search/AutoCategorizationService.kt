@@ -19,11 +19,10 @@ open class AutoCategorizationService(
             .filter { it.category != null }
             .map {
                 BankingOperationDocument(
-                    id = "${it.partyId}-${it.fingerprint}-${it.occurrence}",
+                    id = "${it.fingerprint}-${it.occurrence}",
                     description = it.description,
                     account = it.account,
-                    categoryId = it.category!!.id!!,
-                    partyId = it.partyId
+                    categoryId = it.category!!.id!!
                 )
             }
 
@@ -33,14 +32,10 @@ open class AutoCategorizationService(
     }
 
     open fun predictCategory(operation: BankingOperation): Category? {
-        // Match on description and account, hard-filtered to the operation's own party so one
-        // household's categorization history never leaks into another's suggestions.
+        // Simple search on description and account
         val query = NativeQuery.builder()
             .withQuery { q ->
                 q.bool { b ->
-                    b.filter { f ->
-                        f.term { t -> t.field("partyId").value(operation.partyId) }
-                    }
                     b.should { s ->
                         s.match { m ->
                             m.field("description").query(operation.description)

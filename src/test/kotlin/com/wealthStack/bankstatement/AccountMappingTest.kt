@@ -16,12 +16,10 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
-import org.springframework.context.annotation.Import
 import org.springframework.util.LinkedMultiValueMap
-import com.wealthStack.TestAuth
+import org.springframework.web.client.RestTemplate
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import(TestAuth::class)
 class AccountMappingTest {
     @MockitoBean
     lateinit var searchRepository: com.wealthStack.bankstatement.search.BankingOperationSearchRepository
@@ -49,7 +47,7 @@ class AccountMappingTest {
     }
 
     private fun baseUrl() = "http://localhost:$port"
-    private val rest = TestAuth.rest()
+    private val rest = RestTemplate()
 
     private fun createMapping(rawAccount: String, displayName: String): Map<*, *> {
         val headers = HttpHeaders()

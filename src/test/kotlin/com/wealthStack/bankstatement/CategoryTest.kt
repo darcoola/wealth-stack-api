@@ -52,41 +52,41 @@ class CategoryTest {
 
     @Test
     fun `creates renames and rejects duplicate names`() {
-        val groceries = categoryService.create(1L,"Groceries")
+        val groceries = categoryService.create("Groceries")
         assertThat(groceries.id).isNotNull()
 
-        categoryService.rename(1L,groceries.id!!, "Food")
+        categoryService.rename(groceries.id!!, "Food")
         assertThat(categoryRepository.findById(groceries.id!!).get().name).isEqualTo("Food")
 
-        categoryService.create(1L,"Salary")
+        categoryService.create("Salary")
         // Renaming onto an existing name is rejected.
-        assertThrows<IllegalArgumentException> { categoryService.rename(1L,groceries.id!!, "Salary") }
+        assertThrows<IllegalArgumentException> { categoryService.rename(groceries.id!!, "Salary") }
         // Creating a duplicate name is rejected.
-        assertThrows<IllegalArgumentException> { categoryService.create(1L,"Salary") }
+        assertThrows<IllegalArgumentException> { categoryService.create("Salary") }
     }
 
     @Test
     fun `assigns and clears a category on an operation`() {
-        importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
         val operation = operationRepository.findAll().first()
-        val category = categoryService.create(1L,"Fuel")
+        val category = categoryService.create("Fuel")
 
-        categoryService.assignToOperation(1L,operation.id!!, category.id)
+        categoryService.assignToOperation(operation.id!!, category.id)
         assertThat(operationRepository.findById(operation.id!!).get().category?.name).isEqualTo("Fuel")
 
         // Passing null clears it back to Uncategorized.
-        categoryService.assignToOperation(1L,operation.id!!, null)
+        categoryService.assignToOperation(operation.id!!, null)
         assertThat(operationRepository.findById(operation.id!!).get().category).isNull()
     }
 
     @Test
     fun `deleting a category in use leaves its operations uncategorized`() {
-        importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
         val operation = operationRepository.findAll().first()
-        val category = categoryService.create(1L,"Fuel")
-        categoryService.assignToOperation(1L,operation.id!!, category.id)
+        val category = categoryService.create("Fuel")
+        categoryService.assignToOperation(operation.id!!, category.id)
 
-        categoryService.delete(1L,category.id!!)
+        categoryService.delete(category.id!!)
 
         assertThat(categoryRepository.findById(category.id!!).isPresent).isEqualTo(false)
         assertThat(operationRepository.findById(operation.id!!).get().category).isNull()
@@ -94,13 +94,13 @@ class CategoryTest {
 
     @Test
     fun `re-import of a raw bank statement preserves a manually assigned category`() {
-        importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
         val operation = operationRepository.findAll().first()
-        val category = categoryService.create(1L,"Fuel")
-        categoryService.assignToOperation(1L,operation.id!!, category.id)
+        val category = categoryService.create("Fuel")
+        categoryService.assignToOperation(operation.id!!, category.id)
 
         // Re-importing the same statement folds onto the existing rows and must NOT reset category.
-        importer.importStatement(1L, "mbank", "mbank-test-statement.csv", mbankBytes())
+        importer.importStatement("mbank", "mbank-test-statement.csv", mbankBytes())
 
         assertThat(operationRepository.findById(operation.id!!).get().category?.name).isEqualTo("Fuel")
     }
@@ -120,26 +120,26 @@ class CategoryTest {
 
     @Test
     fun `manual import assigns an existing dictionary category by name`() {
-        categoryService.create(1L,"Salary")
+        categoryService.create("Salary")
 
-        importer.importOperations(1L, manualRequest("Salary"))
+        importer.importOperations(manualRequest("Salary"))
 
         assertThat(operationRepository.findAll().single().category?.name).isEqualTo("Salary")
     }
 
     @Test
     fun `manual import rejects an unknown category name`() {
-        assertThrows<IllegalArgumentException> { importer.importOperations(1L, manualRequest("DoesNotExist")) }
+        assertThrows<IllegalArgumentException> { importer.importOperations(manualRequest("DoesNotExist")) }
     }
 
     @Test
     fun `manual re-import overwrites with the file's category`() {
-        categoryService.create(1L,"Salary")
-        categoryService.create(1L,"Bonus")
+        categoryService.create("Salary")
+        categoryService.create("Bonus")
 
-        importer.importOperations(1L, manualRequest("Salary"))
+        importer.importOperations(manualRequest("Salary"))
         // The same row re-imported with a different category: the file is the source of truth.
-        importer.importOperations(1L, manualRequest("Bonus"))
+        importer.importOperations(manualRequest("Bonus"))
 
         assertThat(operationRepository.findAll().single().category?.name).isEqualTo("Bonus")
     }
